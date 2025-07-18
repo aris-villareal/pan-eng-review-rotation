@@ -5,30 +5,30 @@ import { WeekInfo, PeriodInfo, RotationConfig } from '../types';
  */
 export function getISOWeek(date: Date): WeekInfo {
   const target = new Date(date.valueOf());
-  const dayNumber = (date.getDay() + 6) % 7; // Make Monday = 0
-  target.setDate(target.getDate() - dayNumber + 3);
+  const dayNumber = (date.getUTCDay() + 6) % 7; // Make Monday = 0
+  target.setUTCDate(target.getUTCDate() - dayNumber + 3);
   const firstThursday = target.valueOf();
-  target.setMonth(0, 1);
-  if (target.getDay() !== 4) {
-    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  target.setUTCMonth(0, 1);
+  if (target.getUTCDay() !== 4) {
+    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
   }
   const weekNumber = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000); // 7 * 24 * 3600 * 1000
 
   // Calculate week start (Monday) and end (Sunday)
   const startDate = new Date(date);
-  startDate.setDate(date.getDate() - dayNumber);
-  startDate.setHours(0, 0, 0, 0);
+  startDate.setUTCDate(date.getUTCDate() - dayNumber);
+  startDate.setUTCHours(0, 0, 0, 0);
 
   const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 6);
-  endDate.setHours(23, 59, 59, 999);
+  endDate.setUTCDate(startDate.getUTCDate() + 6);
+  endDate.setUTCHours(23, 59, 59, 999);
 
   return {
     weekNumber,
     periodNumber: weekNumber,
     startDate,
     endDate,
-    year: target.getFullYear(),
+    year: target.getUTCFullYear(),
     type: 'week',
   };
 }
@@ -68,7 +68,8 @@ export function formatDateRange(startDate: Date, endDate: Date): string {
   const options: Intl.DateTimeFormatOptions = { 
     month: 'short', 
     day: 'numeric',
-    year: startDate.getFullYear() !== endDate.getFullYear() ? 'numeric' : undefined
+    year: startDate.getUTCFullYear() !== endDate.getUTCFullYear() ? 'numeric' : undefined,
+    timeZone: 'UTC'
   };
   
   const start = startDate.toLocaleDateString('en-US', options);
@@ -154,13 +155,13 @@ export function isNewRotationPeriod(lastRotationDate: string, currentDate: Date,
  */
 function getDayPeriod(date: Date): PeriodInfo {
   const startDate = new Date(date);
-  startDate.setHours(0, 0, 0, 0);
+  startDate.setUTCHours(0, 0, 0, 0);
   
   const endDate = new Date(startDate);
-  endDate.setHours(23, 59, 59, 999);
+  endDate.setUTCHours(23, 59, 59, 999);
   
   // Day number of year
-  const start = new Date(date.getFullYear(), 0, 0);
+  const start = new Date(Date.UTC(date.getUTCFullYear(), 0, 0));
   const diff = date.getTime() - start.getTime();
   const dayNumber = Math.floor(diff / (1000 * 60 * 60 * 24));
   
@@ -168,7 +169,7 @@ function getDayPeriod(date: Date): PeriodInfo {
     periodNumber: dayNumber,
     startDate,
     endDate,
-    year: date.getFullYear(),
+    year: date.getUTCFullYear(),
     type: 'day',
   };
 }
@@ -193,14 +194,14 @@ function getBiWeeklyPeriod(date: Date): PeriodInfo {
  * Get month period info
  */
 function getMonthPeriod(date: Date): PeriodInfo {
-  const startDate = new Date(date.getFullYear(), date.getMonth(), 1);
-  const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+  const startDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  const endDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 999));
   
   return {
-    periodNumber: date.getMonth() + 1,
+    periodNumber: date.getUTCMonth() + 1,
     startDate,
     endDate,
-    year: date.getFullYear(),
+    year: date.getUTCFullYear(),
     type: 'month',
   };
 }
@@ -209,21 +210,21 @@ function getMonthPeriod(date: Date): PeriodInfo {
  * Get custom period info based on interval days
  */
 function getCustomPeriod(date: Date, intervalDays: number): PeriodInfo {
-  const epoch = new Date('2024-01-01'); // Reference date
+  const epoch = new Date(Date.UTC(2024, 0, 1)); // Reference date
   const daysSinceEpoch = Math.floor((date.getTime() - epoch.getTime()) / (1000 * 60 * 60 * 24));
   const periodNumber = Math.floor(daysSinceEpoch / intervalDays);
   
   const startDate = new Date(epoch.getTime() + periodNumber * intervalDays * 24 * 60 * 60 * 1000);
-  startDate.setHours(0, 0, 0, 0);
+  startDate.setUTCHours(0, 0, 0, 0);
   
   const endDate = new Date(startDate.getTime() + (intervalDays - 1) * 24 * 60 * 60 * 1000);
-  endDate.setHours(23, 59, 59, 999);
+  endDate.setUTCHours(23, 59, 59, 999);
   
   return {
     periodNumber,
     startDate,
     endDate,
-    year: date.getFullYear(),
+    year: date.getUTCFullYear(),
     type: 'custom',
   };
 }
@@ -240,7 +241,7 @@ function getDaysBetween(startDate: Date, endDate: Date): number {
  * Calculate months between two dates
  */
 function getMonthsBetween(startDate: Date, endDate: Date): number {
-  const yearDiff = endDate.getFullYear() - startDate.getFullYear();
-  const monthDiff = endDate.getMonth() - startDate.getMonth();
+  const yearDiff = endDate.getUTCFullYear() - startDate.getUTCFullYear();
+  const monthDiff = endDate.getUTCMonth() - startDate.getUTCMonth();
   return yearDiff * 12 + monthDiff;
 } 
