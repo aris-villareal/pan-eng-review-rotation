@@ -1,0 +1,22 @@
+{
+  "users": [
+    {
+      "id": "U123456789",
+      "name": "@aris.villareal",
+      "startDate": "2024-01-01"
+    },
+    {
+      "id": "U987654321",
+      "name": "Jane Smith",
+      "startDate": "2024-01-01"
+    },
+    {
+      "id": "U456789123",
+      "name": "Alice Johnson",
+      "startDate": "2024-01-01"
+    }
+  ],
+  "currentIndex": 0,
+  "lastRotationDate": "2024-01-01",
+  "startDate": "2024-01-01"
+} 
