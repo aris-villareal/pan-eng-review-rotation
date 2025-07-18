@@ -4,7 +4,7 @@ import { getConfig, validateConfig } from './config';
 import { StorageService } from './services/StorageService';
 import { SlackService } from './services/SlackService';
 import { RotationService } from './services/RotationService';
-import { getISOWeek } from './utils/dateUtils';
+import { getISOWeek, getRotationPeriod } from './utils/dateUtils';
 
 interface AppOptions {
   dryRun?: boolean;
@@ -63,25 +63,26 @@ class RotationNotifierApp {
         return;
       }
       
-      // Get current forum owner
+      // Get current forum owner and rotation state
       const currentUser = await this.rotationService.getCurrentForumOwner();
+      const rotationState = await this.storageService.loadRotationState();
       const currentDate = new Date();
-      const weekInfo = getISOWeek(currentDate);
+      const periodInfo = getRotationPeriod(currentDate, rotationState.config);
       
-      console.log(`📅 Current week: ${weekInfo.weekNumber} (${weekInfo.year})`);
-      console.log(`👤 Forum owner: ${currentUser.name} (${currentUser.id})`);
+      console.log(`📅 Current ${rotationState.config.frequency} period: ${periodInfo.periodNumber} (${periodInfo.year})`);
+      console.log(`👤 Forum owner: ${currentUser.name || currentUser.id} (${currentUser.id})`);
       
       if (options.dryRun) {
         console.log('🔍 Dry run mode - no message will be sent');
         console.log('Message preview:');
-        console.log(`Forum Owner Rotation - Week of ${weekInfo.startDate.toLocaleDateString()} - ${weekInfo.endDate.toLocaleDateString()}`);
-        console.log(`This week's forum owner: ${currentUser.name}`);
+        console.log(`Forum Owner Rotation - ${this.getPeriodDescription(rotationState.config)} ${periodInfo.startDate.toLocaleDateString()} - ${periodInfo.endDate.toLocaleDateString()}`);
+        console.log(`${this.getOwnerDescription(rotationState.config)}: ${currentUser.name || currentUser.id}`);
         return;
       }
       
       // Send notification
       console.log('📤 Sending Slack notification...');
-      const result = await this.slackService.sendRotationNotification(currentUser, weekInfo);
+      const result = await this.slackService.sendRotationNotification(currentUser, periodInfo, rotationState.config);
       
       if (result.success) {
         console.log('✅ Notification sent successfully!');
@@ -155,8 +156,9 @@ class RotationNotifierApp {
     const currentUser = await this.rotationService.getCurrentForumOwner();
     
     console.log(`Total users: ${stats.totalUsers}`);
-    console.log(`Current user: ${currentUser.name} (index ${stats.currentUserIndex})`);
-    console.log(`Weeks since start: ${stats.weeksSinceStart}`);
+    console.log(`Current user: ${currentUser.name || currentUser.id} (index ${stats.currentUserIndex})`);
+    console.log(`Periods since start: ${stats.periodsSinceStart}`);
+    console.log(`Rotation frequency: ${stats.rotationFrequency}`);
     console.log(`Full rotations completed: ${stats.rotationsCompleted}`);
     console.log(`Last rotation: ${new Date(stats.lastRotationDate).toLocaleDateString()}`);
   }
@@ -164,15 +166,55 @@ class RotationNotifierApp {
   /**
    * Show upcoming rotation preview
    */
-  private async showPreview(weeks: number): Promise<void> {
-    console.log(`📅 Upcoming ${weeks} week rotation preview:`);
+  private async showPreview(periods: number): Promise<void> {
+    console.log(`📅 Upcoming ${periods} rotation period preview:`);
     
-    const schedule = await this.rotationService.getUpcomingRotation(weeks);
+    const schedule = await this.rotationService.getUpcomingRotation(periods);
     
-    schedule.forEach(({ user, weekInfo, weekNumber }) => {
-      const dateRange = `${weekInfo.startDate.toLocaleDateString()} - ${weekInfo.endDate.toLocaleDateString()}`;
-      console.log(`Week ${weekNumber}: ${user.name} (${dateRange})`);
+    schedule.forEach(({ user, periodInfo, periodNumber }) => {
+      const dateRange = `${periodInfo.startDate.toLocaleDateString()} - ${periodInfo.endDate.toLocaleDateString()}`;
+      console.log(`Period ${periodNumber}: ${user.name || user.id} (${dateRange})`);
     });
+  }
+
+  /**
+   * Get period description for console output
+   */
+  private getPeriodDescription(config: any): string {
+    switch (config.frequency) {
+      case 'daily':
+        return 'Day of';
+      case 'weekly':
+        return 'Week of';
+      case 'bi-weekly':
+        return 'Bi-week of';
+      case 'monthly':
+        return 'Month of';
+      case 'custom':
+        return `${config.interval}-day period of`;
+      default:
+        return 'Period of';
+    }
+  }
+
+  /**
+   * Get owner description for console output
+   */
+  private getOwnerDescription(config: any): string {
+    switch (config.frequency) {
+      case 'daily':
+        return "Today's forum owner";
+      case 'weekly':
+        return "This week's forum owner";
+      case 'bi-weekly':
+        return "This bi-week's forum owner";
+      case 'monthly':
+        return "This month's forum owner";
+      case 'custom':
+        return "This period's forum owner";
+      default:
+        return "Current forum owner";
+    }
   }
 }
 

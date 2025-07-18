@@ -1,22 +1,21 @@
 {
   "users": [
     {
-      "id": "U123456789",
-      "name": "@aris.villareal",
-      "startDate": "2024-01-01"
+      "id": "aris.villareal",
+      "startDate": "2025-07-18"
     },
     {
-      "id": "U987654321",
-      "name": "Jane Smith",
-      "startDate": "2024-01-01"
-    },
-    {
-      "id": "U456789123",
-      "name": "Alice Johnson",
-      "startDate": "2024-01-01"
+      "id": "steeve.bete", 
+      "startDate": "2025-07-18"
     }
   ],
   "currentIndex": 0,
-  "lastRotationDate": "2024-01-01",
-  "startDate": "2024-01-01"
-} 
+  "lastRotationDate": "2025-07-18",
+  "startDate": "2025-07-18",
+  "config": {
+    "frequency": "daily",
+    "schedule": {
+      "time": "09:00"
+    }
+  }
+}

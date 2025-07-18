@@ -1,6 +1,6 @@
-import { User, RotationState } from '../types';
+import { User, RotationState, PeriodInfo } from '../types';
 import { StorageService } from './StorageService';
-import { getISOWeek, getWeeksBetween, getCurrentDateInTimezone, isNewWeek } from '../utils/dateUtils';
+import { getISOWeek, getWeeksBetween, getCurrentDateInTimezone, isNewWeek, getRotationPeriod, getPeriodsBetween, isNewRotationPeriod } from '../utils/dateUtils';
 
 export class RotationService {
   private storageService: StorageService;
@@ -30,40 +30,66 @@ export class RotationService {
   }
 
   /**
-   * Preview who will be the forum owner for a specific week
+   * Preview who will be the forum owner for a specific date
    */
   async previewForumOwner(targetDate: Date): Promise<User> {
     const state = await this.storageService.loadRotationState();
     const rotationStartDate = new Date(state.startDate);
-    const weeksSinceStart = getWeeksBetween(rotationStartDate, targetDate);
-    const targetIndex = weeksSinceStart % state.users.length;
+    const periodsSinceStart = getPeriodsBetween(rotationStartDate, targetDate, state.config);
+    const targetIndex = periodsSinceStart % state.users.length;
     
     return this.getUserAtIndex(state, targetIndex);
   }
 
   /**
-   * Get rotation schedule for the next N weeks
+   * Get rotation schedule for the next N periods
    */
-  async getUpcomingRotation(weeksAhead: number = 4): Promise<Array<{ user: User; weekInfo: any; weekNumber: number }>> {
+  async getUpcomingRotation(periodsAhead: number = 4): Promise<Array<{ user: User; periodInfo: PeriodInfo; periodNumber: number }>> {
     const state = await this.storageService.loadRotationState();
     const currentDate = getCurrentDateInTimezone(this.timezone);
     const schedule = [];
 
-    for (let i = 0; i < weeksAhead; i++) {
-      const targetDate = new Date(currentDate);
-      targetDate.setDate(currentDate.getDate() + (i * 7));
+    for (let i = 0; i < periodsAhead; i++) {
+      const targetDate = this.getNextPeriodDate(currentDate, state.config, i);
       
       const user = await this.previewForumOwner(targetDate);
-      const weekInfo = getISOWeek(targetDate);
+      const periodInfo = getRotationPeriod(targetDate, state.config);
       
       schedule.push({
         user,
-        weekInfo,
-        weekNumber: i + 1,
+        periodInfo,
+        periodNumber: i + 1,
       });
     }
 
     return schedule;
+  }
+
+  /**
+   * Calculate the date for the next rotation period
+   */
+  private getNextPeriodDate(currentDate: Date, config: any, periodsAhead: number): Date {
+    const targetDate = new Date(currentDate);
+    
+    switch (config.frequency) {
+      case 'daily':
+        targetDate.setDate(currentDate.getDate() + periodsAhead);
+        break;
+      case 'weekly':
+        targetDate.setDate(currentDate.getDate() + (periodsAhead * 7));
+        break;
+      case 'bi-weekly':
+        targetDate.setDate(currentDate.getDate() + (periodsAhead * 14));
+        break;
+      case 'monthly':
+        targetDate.setMonth(currentDate.getMonth() + periodsAhead);
+        break;
+      case 'custom':
+        targetDate.setDate(currentDate.getDate() + (periodsAhead * (config.interval || 7)));
+        break;
+    }
+    
+    return targetDate;
   }
 
   /**
@@ -101,38 +127,44 @@ export class RotationService {
   async getRotationStats(): Promise<{
     totalUsers: number;
     currentUserIndex: number;
-    weeksSinceStart: number;
+    periodsSinceStart: number;
     rotationsCompleted: number;
     lastRotationDate: string;
+    rotationFrequency: string;
   }> {
     const state = await this.storageService.loadRotationState();
     const currentDate = getCurrentDateInTimezone(this.timezone);
     const startDate = new Date(state.startDate);
-    const weeksSinceStart = getWeeksBetween(startDate, currentDate);
+    const periodsSinceStart = getPeriodsBetween(startDate, currentDate, state.config);
+    
+    const frequencyDisplay = state.config.frequency === 'custom' 
+      ? `Every ${state.config.interval} days`
+      : state.config.frequency;
     
     return {
       totalUsers: state.users.length,
       currentUserIndex: state.currentIndex,
-      weeksSinceStart,
-      rotationsCompleted: Math.floor(weeksSinceStart / state.users.length),
+      periodsSinceStart,
+      rotationsCompleted: Math.floor(periodsSinceStart / state.users.length),
       lastRotationDate: state.lastRotationDate,
+      rotationFrequency: frequencyDisplay,
     };
   }
 
   /**
-   * Check if rotation should advance based on current date
+   * Check if rotation should advance based on current date and config
    */
   private shouldAdvanceRotation(state: RotationState, currentDate: Date): boolean {
-    // Always advance if it's a new week
-    if (isNewWeek(state.lastRotationDate, currentDate)) {
+    // Use configurable rotation period check
+    if (isNewRotationPeriod(state.lastRotationDate, currentDate, state.config)) {
       return true;
     }
     
-    // Also check if we're significantly behind (missed weeks)
+    // Also check if we're significantly behind (missed periods)
     const lastRotationDate = new Date(state.lastRotationDate);
-    const weeksSinceLastRotation = getWeeksBetween(lastRotationDate, currentDate);
+    const periodsSinceLastRotation = getPeriodsBetween(lastRotationDate, currentDate, state.config);
     
-    return weeksSinceLastRotation > 0;
+    return periodsSinceLastRotation > 0;
   }
 
   /**
@@ -140,18 +172,19 @@ export class RotationService {
    */
   private async advanceRotation(state: RotationState, currentDate: Date): Promise<void> {
     const lastRotationDate = new Date(state.lastRotationDate);
-    const weeksSinceLastRotation = getWeeksBetween(lastRotationDate, currentDate);
+    const periodsSinceLastRotation = getPeriodsBetween(lastRotationDate, currentDate, state.config);
     
-    if (weeksSinceLastRotation <= 0) {
+    if (periodsSinceLastRotation <= 0) {
       return; // No advancement needed
     }
     
-    // Calculate new index based on weeks passed
-    const newIndex = (state.currentIndex + weeksSinceLastRotation) % state.users.length;
+    // Calculate new index based on periods passed
+    const newIndex = (state.currentIndex + periodsSinceLastRotation) % state.users.length;
     
     await this.storageService.updateRotationState(newIndex, currentDate.toISOString());
     
-    console.log(`Rotation advanced: ${weeksSinceLastRotation} week(s) passed, new index: ${newIndex}`);
+    const periodType = state.config.frequency === 'custom' ? `${state.config.interval}-day period(s)` : `${state.config.frequency} period(s)`;
+    console.log(`Rotation advanced: ${periodsSinceLastRotation} ${periodType} passed, new index: ${newIndex}`);
   }
 
   /**

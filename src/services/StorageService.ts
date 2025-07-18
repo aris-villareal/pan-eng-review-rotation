@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { RotationState, User } from '../types';
+import { RotationState, User, RotationConfig } from '../types';
 
 export class StorageService {
   private usersFilePath: string;
@@ -19,6 +19,11 @@ export class StorageService {
       const data = await fs.readFile(this.usersFilePath, 'utf-8');
       const state = JSON.parse(data) as RotationState;
       
+      // Backwards compatibility: Add default config if missing
+      if (!state.config) {
+        state.config = this.getDefaultRotationConfig();
+      }
+      
       // Validate the loaded state
       this.validateRotationState(state);
       
@@ -29,6 +34,19 @@ export class StorageService {
       }
       throw new Error(`Failed to load rotation state: ${(error as Error).message}`);
     }
+  }
+
+  /**
+   * Get default rotation configuration for backwards compatibility
+   */
+  private getDefaultRotationConfig(): RotationConfig {
+    return {
+      frequency: 'weekly',
+      schedule: {
+        dayOfWeek: 1, // Monday
+        time: '09:00',
+      },
+    };
   }
 
   /**
@@ -138,11 +156,44 @@ export class StorageService {
       throw new Error('Invalid rotation state: missing required date fields');
     }
     
+    if (!state.config) {
+      throw new Error('Invalid rotation state: missing config field');
+    }
+    
+    // Validate rotation config
+    this.validateRotationConfig(state.config);
+    
     // Validate each user
     state.users.forEach((user, index) => {
-      if (!user.id || !user.name || !user.startDate) {
-        throw new Error(`Invalid user at index ${index}: missing required fields`);
+      if (!user.id || !user.startDate) {
+        throw new Error(`Invalid user at index ${index}: missing required fields (id, startDate)`);
       }
     });
+  }
+
+  /**
+   * Validate rotation configuration
+   */
+  private validateRotationConfig(config: RotationConfig): void {
+    const validFrequencies = ['daily', 'weekly', 'bi-weekly', 'monthly', 'custom'];
+    if (!validFrequencies.includes(config.frequency)) {
+      throw new Error(`Invalid rotation frequency: ${config.frequency}`);
+    }
+    
+    if (config.frequency === 'custom' && (!config.interval || config.interval < 1)) {
+      throw new Error('Custom frequency requires a positive interval value');
+    }
+    
+    if (config.schedule?.dayOfWeek !== undefined) {
+      if (config.schedule.dayOfWeek < 0 || config.schedule.dayOfWeek > 6) {
+        throw new Error('dayOfWeek must be between 0 (Sunday) and 6 (Saturday)');
+      }
+    }
+    
+    if (config.schedule?.dayOfMonth !== undefined) {
+      if (config.schedule.dayOfMonth < 1 || config.schedule.dayOfMonth > 31) {
+        throw new Error('dayOfMonth must be between 1 and 31');
+      }
+    }
   }
 } 

@@ -1,0 +1,19 @@
+{
+  "users": [
+    {
+      "id": "U123ABC456",
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "U789DEF012", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "U345GHI789",
+      "startDate": "2025-07-18"
+    }
+  ],
+  "currentIndex": 0,
+  "lastRotationDate": "2025-07-18",
+  "startDate": "2025-07-18"
+}

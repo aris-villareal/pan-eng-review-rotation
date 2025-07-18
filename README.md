@@ -50,8 +50,8 @@ In your Slack app settings:
 
 **OAuth & Permissions** → **Scopes** → **Bot Token Scopes**:
 - `chat:write` - Send messages to channels
-- `channels:read` - Read channel information
-- `users:read` - Read user information
+
+**Note**: Only `chat:write` is required. The app has been optimized for minimal permissions.
 
 **Install App** → **Install to Workspace** → Copy the **Bot User OAuth Token**
 
@@ -83,20 +83,20 @@ Edit `src/config/users.json`:
   "users": [
     {
       "id": "U123456789",
-      "name": "John Doe",
-      "startDate": "2024-01-01"
+      "startDate": "2025-07-18"
     },
     {
-      "id": "U987654321", 
-      "name": "Jane Smith",
-      "startDate": "2024-01-01"
+      "id": "U987654321",
+      "startDate": "2025-07-18"
     }
   ],
   "currentIndex": 0,
-  "lastRotationDate": "2024-01-01",
-  "startDate": "2024-01-01"
+  "lastRotationDate": "2025-07-18",
+  "startDate": "2025-07-18"
 }
 ```
+
+**Note**: Names are not required! Slack automatically displays real names when using `<@U123456789>` mentions.
 
 **Finding Slack User IDs:**
 ```bash
@@ -267,7 +267,7 @@ npm start -- --stats
 **"Slack connection failed"**
 - Verify bot token is correct
 - Ensure bot is added to the target channel
-- Check bot has required permissions (`chat:write`, `channels:read`)
+- Check bot has required permissions (`chat:write`)
 
 **"User not found at index"**
 - Check `users.json` has valid user entries

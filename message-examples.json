@@ -1,0 +1,78 @@
+{
+  "messageStyles": {
+    "professional": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "professional"
+        }
+      }
+    },
+    "casual": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "casual"
+        }
+      }
+    },
+    "fun": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "fun"
+        }
+      }
+    },
+    "minimal": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "minimal"
+        }
+      }
+    },
+    "customExample": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "custom",
+          "title": "DevOps Hero of the Week",
+          "ownerLabel": "This week's DevOps superhero",
+          "responsibilities": [
+            "🚀 Deploy with confidence",
+            "🔧 Fix what's broken",
+            "📊 Monitor all the things",
+            "🎯 Keep the team focused"
+          ],
+          "callToAction": "Need DevOps magic? Summon this week's hero! ⚡️",
+          "emoji": {
+            "header": "🦸‍♀️",
+            "owner": "⭐",
+            "responsibility": ""
+          }
+        }
+      }
+    }
+  }
+}

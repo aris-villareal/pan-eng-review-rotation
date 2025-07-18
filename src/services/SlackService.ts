@@ -1,5 +1,5 @@
 import { WebClient } from '@slack/web-api';
-import { User, NotificationResult, WeekInfo } from '../types';
+import { User, NotificationResult, WeekInfo, PeriodInfo, RotationConfig } from '../types';
 import { formatDateRange } from '../utils/dateUtils';
 
 export class SlackService {
@@ -14,9 +14,9 @@ export class SlackService {
   /**
    * Send rotation notification to Slack channel
    */
-  async sendRotationNotification(user: User, weekInfo: WeekInfo): Promise<NotificationResult> {
+  async sendRotationNotification(user: User, periodInfo: PeriodInfo | WeekInfo, config?: RotationConfig): Promise<NotificationResult> {
     try {
-      const message = this.formatRotationMessage(user, weekInfo);
+      const message = this.formatRotationMessage(user, periodInfo, config);
       
       const result = await this.client.chat.postMessage({
         channel: this.channelId,
@@ -54,14 +54,8 @@ export class SlackService {
         throw new Error(`Authentication failed: ${authResult.error || 'Unknown error'}`);
       }
 
-      // Test if bot can post to the channel
-      const channelInfo = await this.client.conversations.info({
-        channel: this.channelId,
-      });
-
-      if (!channelInfo.ok) {
-        throw new Error(`Channel access failed: ${channelInfo.error || 'Unknown error'}`);
-      }
+      // Note: Skipping channel validation to avoid requiring channels:read scope
+      // The bot will attempt to post when actually sending messages
 
       return { success: true };
     } catch (error) {
@@ -90,7 +84,9 @@ export class SlackService {
         realName: result.user.real_name,
       };
     } catch (error) {
-      console.error(`Failed to get user info for ${userId}:`, error);
+      // If we don't have users:read scope, gracefully return null
+      // The app will use the names stored in users.json instead
+      console.log(`Note: Unable to fetch user info for ${userId} (users:read scope not available)`);
       return null;
     }
   }
@@ -98,8 +94,13 @@ export class SlackService {
   /**
    * Format the rotation message with rich Slack blocks
    */
-  private formatRotationMessage(user: User, weekInfo: WeekInfo) {
-    const dateRange = formatDateRange(weekInfo.startDate, weekInfo.endDate);
+  private formatRotationMessage(user: User, periodInfo: PeriodInfo | WeekInfo, config?: RotationConfig) {
+    const dateRange = formatDateRange(periodInfo.startDate, periodInfo.endDate);
+    
+    // Dynamic messaging based on rotation frequency
+    const periodType = this.getPeriodType(periodInfo, config);
+    const ownerTitle = this.getOwnerTitle(config);
+    const responsibilityPeriod = this.getResponsibilityPeriod(config);
     
     const blocks = [
       {
@@ -114,14 +115,14 @@ export class SlackService {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*Week of ${dateRange}*`,
+          text: `*${periodType} ${dateRange}*`,
         },
       },
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `This week's forum owner: <@${user.id}>`,
+          text: `${ownerTitle}: <@${user.id}>`,
         },
       },
       {
@@ -131,7 +132,7 @@ export class SlackService {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: '*Role responsibilities:*\n• Monitor forum discussions\n• Escalate important issues\n• Facilitate team communication\n• Weekly summary on Friday',
+          text: `*Role responsibilities:*\n• Monitor forum discussions\n• Escalate important issues\n• Facilitate team communication\n• ${responsibilityPeriod} summary`,
         },
       },
       {
@@ -139,18 +140,106 @@ export class SlackService {
         elements: [
           {
             type: 'mrkdwn',
-            text: 'Questions? Reach out to this week\'s owner! 👋',
+            text: `Questions? Reach out to ${this.getCurrentOwnerReference(config)}! 👋`,
           },
         ],
       },
     ];
 
-    const fallbackText = `Forum Owner Rotation - Week of ${dateRange}\n\nThis week's forum owner: ${user.name}\n\nRole responsibilities:\n• Monitor forum discussions\n• Escalate important issues\n• Facilitate team communication\n• Weekly summary on Friday\n\nQuestions? Reach out to this week's owner! 👋`;
+    const fallbackText = `Forum Owner Rotation - ${periodType} ${dateRange}\n\n${ownerTitle}: ${user.name || user.id}\n\nRole responsibilities:\n• Monitor forum discussions\n• Escalate important issues\n• Facilitate team communication\n• ${responsibilityPeriod} summary\n\nQuestions? Reach out to ${this.getCurrentOwnerReference(config)}! 👋`;
 
     return {
       blocks,
       fallbackText,
     };
+  }
+
+  /**
+   * Get period type description
+   */
+  private getPeriodType(periodInfo: PeriodInfo | WeekInfo, config?: RotationConfig): string {
+    if (!config) return 'Week of';
+    
+    switch (config.frequency) {
+      case 'daily':
+        return 'Day of';
+      case 'weekly':
+        return 'Week of';
+      case 'bi-weekly':
+        return 'Bi-week of';
+      case 'monthly':
+        return 'Month of';
+      case 'custom':
+        return `${config.interval}-day period of`;
+      default:
+        return 'Period of';
+    }
+  }
+
+  /**
+   * Get owner title based on frequency
+   */
+  private getOwnerTitle(config?: RotationConfig): string {
+    if (!config) return "This week's forum owner";
+    
+    switch (config.frequency) {
+      case 'daily':
+        return "Today's forum owner";
+      case 'weekly':
+        return "This week's forum owner";
+      case 'bi-weekly':
+        return "This bi-week's forum owner";
+      case 'monthly':
+        return "This month's forum owner";
+      case 'custom':
+        return "This period's forum owner";
+      default:
+        return "Current forum owner";
+    }
+  }
+
+  /**
+   * Get responsibility summary period
+   */
+  private getResponsibilityPeriod(config?: RotationConfig): string {
+    if (!config) return 'Weekly';
+    
+    switch (config.frequency) {
+      case 'daily':
+        return 'End-of-day';
+      case 'weekly':
+        return 'Weekly';
+      case 'bi-weekly':
+        return 'Bi-weekly';
+      case 'monthly':
+        return 'Monthly';
+      case 'custom':
+        return 'Period-end';
+      default:
+        return 'Regular';
+    }
+  }
+
+  /**
+   * Get current owner reference
+   */
+  private getCurrentOwnerReference(config?: RotationConfig): string {
+    if (!config) return "this week's owner";
+    
+    switch (config.frequency) {
+      case 'daily':
+        return "today's owner";
+      case 'weekly':
+        return "this week's owner";
+      case 'bi-weekly':
+        return "this period's owner";
+      case 'monthly':
+        return "this month's owner";
+      case 'custom':
+        return "the current owner";
+      default:
+        return "the current owner";
+    }
   }
 
   /**
