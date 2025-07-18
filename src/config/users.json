@@ -61,7 +61,7 @@
   "lastRotationDate": "2025-07-21",
   "startDate": "2025-07-18",
   "config": {
-    "frequency": "daily",
+    "frequency": "weekly",
     "schedule": {
       "time": "09:00"
     }
