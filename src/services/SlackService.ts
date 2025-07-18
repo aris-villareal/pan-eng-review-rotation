@@ -99,7 +99,6 @@ export class SlackService {
     
     // Dynamic messaging based on rotation frequency
     const periodType = this.getPeriodType(periodInfo, config);
-    const ownerTitle = this.getOwnerTitle(config);
     const responsibilityPeriod = this.getResponsibilityPeriod(config);
     
     const blocks = [
@@ -107,7 +106,7 @@ export class SlackService {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: '🏆 Forum Owner Rotation',
+          text: '🍳 PAN Engineering Forum',
           emoji: true,
         },
       },
@@ -115,38 +114,19 @@ export class SlackService {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${periodType} ${dateRange}*`,
+          text: `Next Emcee: <@${user.id}>`,
         },
       },
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `${ownerTitle}: <@${user.id}>`,
+          text: 'https://postmanlabs.atlassian.net/wiki/spaces/PN/pages/5326733521/Engineering+Review+Session',
         },
-      },
-      {
-        type: 'divider',
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*Role responsibilities:*\n• Monitor forum discussions\n• Escalate important issues\n• Facilitate team communication\n• ${responsibilityPeriod} summary`,
-        },
-      },
-      {
-        type: 'context',
-        elements: [
-          {
-            type: 'mrkdwn',
-            text: `Questions? Reach out to ${this.getCurrentOwnerReference(config)}! 👋`,
-          },
-        ],
       },
     ];
 
-    const fallbackText = `Forum Owner Rotation - ${periodType} ${dateRange}\n\n${ownerTitle}: ${user.name || user.id}\n\nRole responsibilities:\n• Monitor forum discussions\n• Escalate important issues\n• Facilitate team communication\n• ${responsibilityPeriod} summary\n\nQuestions? Reach out to ${this.getCurrentOwnerReference(config)}! 👋`;
+    const fallbackText = `PAN Engineering Forum Next Emcee: ${user.name || user.id}\nhttps://postmanlabs.atlassian.net/wiki/spaces/PN/pages/5326733521/Engineering+Review+Session`;
 
     return {
       blocks,
@@ -173,28 +153,6 @@ export class SlackService {
         return `${config.interval}-day period of`;
       default:
         return 'Period of';
-    }
-  }
-
-  /**
-   * Get owner title based on frequency
-   */
-  private getOwnerTitle(config?: RotationConfig): string {
-    if (!config) return "This week's forum owner";
-    
-    switch (config.frequency) {
-      case 'daily':
-        return "Today's forum owner";
-      case 'weekly':
-        return "This week's forum owner";
-      case 'bi-weekly':
-        return "This bi-week's forum owner";
-      case 'monthly':
-        return "This month's forum owner";
-      case 'custom':
-        return "This period's forum owner";
-      default:
-        return "Current forum owner";
     }
   }
 
