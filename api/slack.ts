@@ -220,7 +220,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           console.log(`[DEBUG] Sending ephemeral message to ${userId}`);
           await slackService.sendEphemeralMessage(
             userId,
-            `✅ Rotation skipped! Next emcee is now <@${newUser.id}>. (State saved to KV store)`
+            `✅ Rotation skipped! Next emcee is now <@${newUser.id}>.`
           );
 
           console.log(`Rotation skipped by ${userId}. New emcee: ${newUser.id} (persisted in KV)`);
@@ -241,12 +241,49 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         }
       } else if (action.action_id === 'show_schedule') {
         try {
-          console.log(`[DEBUG] Processing show_schedule...`);
+          console.log(`[DEBUG] Processing show_schedule with KV storage...`);
           
-          const schedule = await rotationService.getUpcomingRotation(6);
+          // Use KV storage to get current rotation state
+          const { KVStorageService } = await import('../src/services/KVStorageService');
+          const kvStorageService = new KVStorageService();
+          const { getCurrentDateInTimezone, getRotationPeriod, getPeriodsBetween } = await import('../src/utils/dateUtils');
+          
+          // Get current rotation state from KV
+          const state = await kvStorageService.loadRotationState();
+          const currentDate = getCurrentDateInTimezone(config.timezone);
+          
+          // Generate schedule for next 6 periods
+          const schedule: Array<{ user: any; periodInfo: any; periodNumber: number }> = [];
+          for (let i = 0; i < 6; i++) {
+            // Calculate target date for this period
+            let targetDate = new Date(currentDate);
+            if (state.config.frequency === 'weekly') {
+              targetDate.setDate(targetDate.getDate() + (i * 7));
+            } else if (state.config.frequency === 'bi-weekly') {
+              targetDate.setDate(targetDate.getDate() + (i * 14));
+            } else if (state.config.frequency === 'custom' && state.config.interval) {
+              targetDate.setDate(targetDate.getDate() + (i * state.config.interval));
+            }
+            
+            // Calculate which user should be active for this date
+            const rotationStartDate = new Date(state.startDate);
+            const periodsSinceStart = getPeriodsBetween(rotationStartDate, targetDate, state.config);
+            const targetIndex = (state.currentIndex + periodsSinceStart) % state.users.length;
+            const user = state.users[targetIndex];
+            
+            if (user) {
+              const periodInfo = getRotationPeriod(targetDate, state.config);
+              schedule.push({
+                user,
+                periodInfo,
+                periodNumber: i + 1,
+              });
+            }
+          }
+          
           await slackService.sendScheduleMessage(userId, schedule);
           
-          console.log(`Schedule sent to ${userId}`);
+          console.log(`Schedule sent to ${userId} (using KV data with ${state.users.length} users, current index: ${state.currentIndex})`);
           res.status(200).json({ text: 'Schedule sent!' });
         } catch (error) {
           console.error('Error showing schedule:', error);

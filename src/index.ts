@@ -90,7 +90,7 @@ class RotationNotifierApp {
     
     if (useKV) {
       // Use KV storage via API endpoint
-      const kvApiUrl = process.env.KV_API_URL || 'https://pan-eng-review-rotation-2wwfcy15k-aris-villareals-projects.vercel.app/api/rotation-state';
+      const kvApiUrl = process.env.KV_API_URL || 'https://pan-eng-review-rotation-je9tdeel3-aris-villareals-projects.vercel.app/api/rotation-state';
       console.log(`[KV] Using KV storage via API: ${kvApiUrl}`);
       this.storageService = new KVRemoteStorageService(kvApiUrl);
     } else {
