@@ -195,15 +195,19 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
       if (action.action_id === 'skip_rotation') {
         try {
-          console.log(`[DEBUG] Processing skip_rotation...`);
+          console.log(`[DEBUG] Processing skip_rotation with KV storage...`);
           
-          // Advance to next user
-          const newUser = await rotationService.advanceToNextUser();
-          const state = await rotationService.getStorageService().loadRotationState();
+          // Use KV storage for persistent skip rotation
+          const { KVStorageService } = await import('../src/services/KVStorageService');
+          const kvStorageService = new KVStorageService();
+          
+          // Advance to next user and persist in KV
+          const newUser = await kvStorageService.advanceToNextUser();
+          const state = await kvStorageService.loadRotationState();
           const currentDate = new Date();
           const periodInfo = getRotationPeriod(currentDate, state.config);
 
-          console.log(`[DEBUG] New user: ${newUser.id}`);
+          console.log(`[DEBUG] KV skip: New user is ${newUser.id} at index ${state.currentIndex}`);
 
           // Update the original message
           const originalMessageTs = payload.message?.ts;
@@ -216,11 +220,11 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           console.log(`[DEBUG] Sending ephemeral message to ${userId}`);
           await slackService.sendEphemeralMessage(
             userId,
-            `✅ Rotation skipped! Next emcee is now <@${newUser.id}>.`
+            `✅ Rotation skipped! Next emcee is now <@${newUser.id}>. (State saved to KV store)`
           );
 
-          console.log(`Rotation skipped by ${userId}. New emcee: ${newUser.id}`);
-          res.status(200).json({ text: 'Rotation updated!' });
+          console.log(`Rotation skipped by ${userId}. New emcee: ${newUser.id} (persisted in KV)`);
+          res.status(200).json({ text: 'Rotation updated and saved!' });
         } catch (error) {
           console.error('Error handling skip rotation:', error);
           

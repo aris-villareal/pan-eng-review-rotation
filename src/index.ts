@@ -6,6 +6,7 @@ import { SlackService } from './services/SlackService';
 import { RotationService } from './services/RotationService';
 import { SlackInteractionHandler } from './services/SlackInteractionHandler';
 import { getISOWeek, getRotationPeriod } from './utils/dateUtils';
+import { RotationState } from './types';
 
 interface AppOptions {
   dryRun?: boolean;
@@ -13,22 +14,93 @@ interface AppOptions {
   preview?: number;
   stats?: boolean;
   server?: boolean;
+  useKV?: boolean;
+}
+
+/**
+ * Service that can read rotation state from KV via API
+ */
+class KVRemoteStorageService {
+  private apiUrl: string;
+  
+  constructor(apiUrl: string) {
+    this.apiUrl = apiUrl;
+  }
+  
+  async loadRotationState(): Promise<RotationState> {
+    try {
+      console.log(`[KV-Remote] Fetching rotation state from: ${this.apiUrl}`);
+      
+      // Use built-in fetch or node-fetch fallback
+      let fetchFn: any = globalThis.fetch;
+      if (!fetchFn) {
+        const nodeFetch = await import('node-fetch');
+        fetchFn = nodeFetch.default;
+      }
+      
+      const response = await fetchFn(this.apiUrl);
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      if (!result.success || !result.data) {
+        throw new Error(`API response invalid: ${result.message || 'Unknown error'}`);
+      }
+      
+      console.log(`[KV-Remote] Successfully loaded state with ${result.data.users.length} users, current index: ${result.data.currentIndex}`);
+      return result.data;
+    } catch (error) {
+      throw new Error(`Failed to load rotation state from KV API: ${(error as Error).message}`);
+    }
+  }
+  
+  // Implement other required methods as no-ops since GitHub Action only reads
+  async saveRotationState(): Promise<void> {
+    throw new Error('GitHub Action should not save state - use KV API instead');
+  }
+  
+  async updateRotationState(): Promise<void> {
+    throw new Error('GitHub Action should not update state - use Slack buttons instead');
+  }
+  
+  async getCurrentUser(): Promise<any> {
+    const state = await this.loadRotationState();
+    return state.users[state.currentIndex];
+  }
+  
+  async addUser(): Promise<void> {
+    throw new Error('GitHub Action should not modify users');
+  }
+  
+  async removeUser(): Promise<void> {
+    throw new Error('GitHub Action should not modify users');
+  }
 }
 
 class RotationNotifierApp {
   private config = getConfig();
-  private storageService: StorageService;
+  private storageService: StorageService | KVRemoteStorageService;
   private slackService: SlackService;
   private rotationService: RotationService;
   private interactionHandler?: SlackInteractionHandler;
 
-  constructor() {
+  constructor(useKV: boolean = false) {
     validateConfig(this.config);
     
-    this.storageService = new StorageService(
-      this.config.usersFilePath,
-      this.config.stateFilePath
-    );
+    if (useKV) {
+      // Use KV storage via API endpoint
+      const kvApiUrl = process.env.KV_API_URL || 'https://pan-eng-review-rotation-2wwfcy15k-aris-villareals-projects.vercel.app/api/rotation-state';
+      console.log(`[KV] Using KV storage via API: ${kvApiUrl}`);
+      this.storageService = new KVRemoteStorageService(kvApiUrl);
+    } else {
+      // Use local file storage
+      console.log('[Local] Using local file storage');
+      this.storageService = new StorageService(
+        this.config.usersFilePath,
+        this.config.stateFilePath
+      );
+    }
     
     this.slackService = new SlackService(
       this.config.slackBotToken,
@@ -36,7 +108,7 @@ class RotationNotifierApp {
     );
     
     this.rotationService = new RotationService(
-      this.storageService,
+      this.storageService as any,
       this.config.timezone
     );
 
@@ -282,6 +354,9 @@ async function main(): Promise<void> {
       case '--server':
         options.server = true;
         break;
+      case '--use-kv':
+        options.useKV = true;
+        break;
       default:
         if (arg.startsWith('--preview=')) {
           const weeks = parseInt(arg.split('=')[1] || '4', 10);
@@ -295,6 +370,7 @@ Options:
   --test          Test Slack connection only
   --stats         Show rotation statistics
   --server        Start interactive server for button handling
+  --use-kv        Use KV storage (read from deployed API)
   --preview=N     Preview next N periods (default: 4)
   --help, -h      Show this help message
 
@@ -310,7 +386,7 @@ Examples:
     }
   }
   
-  const app = new RotationNotifierApp();
+  const app = new RotationNotifierApp(options.useKV);
   await app.run(options);
 }
 

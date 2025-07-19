@@ -50,11 +50,11 @@ jobs:
           NODE_ENV: production
         run: |
           if [ "${{ github.event.inputs.test_connection }}" = "true" ]; then
-            npm start -- --test
+            npm start -- --test --use-kv
           elif [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            npm start -- --dry-run
+            npm start -- --dry-run --use-kv
           else
-            npm start
+            npm start -- --use-kv
           fi
       
       - name: Upload logs on failure
