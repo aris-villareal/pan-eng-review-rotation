@@ -44,9 +44,8 @@ async function initializeServices() {
   const { getRotationPeriod } = await import('../src/utils/dateUtils');
   const path = await import('path');
 
-  // Use correct paths for deployed files - they're in dist/config in Vercel
-  const usersFilePath = path.join(process.cwd(), 'dist/config/users.json');
-  const stateFilePath = path.join(process.cwd(), 'dist/config/rotation-state.json');
+  const usersFilePath = path.join(process.cwd(), 'src/config/users.json');
+  const stateFilePath = path.join(process.cwd(), 'src/config/rotation-state.json');
 
   console.log(`[DEBUG] Looking for users file at: ${usersFilePath}`);
   console.log(`[DEBUG] Looking for state file at: ${stateFilePath}`);

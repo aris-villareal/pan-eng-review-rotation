@@ -3,7 +3,8 @@
   "outputDirectory": "dist",
   "functions": {
     "api/slack.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "src/config/**"
     }
   },
   "rewrites": [
@@ -15,4 +16,4 @@
   "env": {
     "NODE_ENV": "production"
   }
-} 
+}
