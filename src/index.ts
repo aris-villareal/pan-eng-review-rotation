@@ -4,6 +4,7 @@ import { getConfig, validateConfig } from './config';
 import { StorageService } from './services/StorageService';
 import { SlackService } from './services/SlackService';
 import { RotationService } from './services/RotationService';
+import { SlackInteractionHandler } from './services/SlackInteractionHandler';
 import { getISOWeek, getRotationPeriod } from './utils/dateUtils';
 
 interface AppOptions {
@@ -11,6 +12,7 @@ interface AppOptions {
   test?: boolean;
   preview?: number;
   stats?: boolean;
+  server?: boolean;
 }
 
 class RotationNotifierApp {
@@ -18,6 +20,7 @@ class RotationNotifierApp {
   private storageService: StorageService;
   private slackService: SlackService;
   private rotationService: RotationService;
+  private interactionHandler?: SlackInteractionHandler;
 
   constructor() {
     validateConfig(this.config);
@@ -36,12 +39,27 @@ class RotationNotifierApp {
       this.storageService,
       this.config.timezone
     );
+
+    // Initialize interaction handler if signing secret is provided
+    if (this.config.slackSigningSecret && this.config.enableInteractions) {
+      this.interactionHandler = new SlackInteractionHandler(
+        this.config.slackSigningSecret,
+        this.config.slackBotToken,
+        this.slackService,
+        this.rotationService
+      );
+    }
   }
 
   /**
    * Main entry point - send weekly rotation notification
    */
   async run(options: AppOptions = {}): Promise<void> {
+    // Handle server mode first
+    if (options.server) {
+      return this.startServer();
+    }
+
     try {
       console.log('🚀 Starting Slack rotation notifier...');
       
@@ -198,6 +216,30 @@ class RotationNotifierApp {
   }
 
   /**
+   * Start the interactive server
+   */
+  private async startServer(): Promise<void> {
+    if (!this.interactionHandler) {
+      throw new Error('Interactive features not configured. Please set SLACK_SIGNING_SECRET and ENABLE_INTERACTIONS=true');
+    }
+
+    console.log('🚀 Starting Slack interaction server...');
+    console.log(`📡 Server will listen on port ${this.config.serverPort}`);
+    console.log('💡 Use Ctrl+C to stop the server');
+    
+    await this.interactionHandler.start(this.config.serverPort);
+    
+    // Keep the process running
+    process.on('SIGINT', async () => {
+      console.log('\n🛑 Gracefully shutting down...');
+      if (this.interactionHandler) {
+        await this.interactionHandler.stop();
+      }
+      process.exit(0);
+    });
+  }
+
+  /**
    * Get owner description for console output
    */
   private getOwnerDescription(config: any): string {
@@ -237,10 +279,33 @@ async function main(): Promise<void> {
       case '--stats':
         options.stats = true;
         break;
+      case '--server':
+        options.server = true;
+        break;
       default:
         if (arg.startsWith('--preview=')) {
           const weeks = parseInt(arg.split('=')[1] || '4', 10);
           options.preview = isNaN(weeks) ? 4 : weeks;
+        } else if (arg === '--help' || arg === '-h') {
+          console.log(`
+Usage: npm start [options]
+
+Options:
+  --dry-run       Run without sending Slack messages
+  --test          Test Slack connection only
+  --stats         Show rotation statistics
+  --server        Start interactive server for button handling
+  --preview=N     Preview next N periods (default: 4)
+  --help, -h      Show this help message
+
+Examples:
+  npm start                    # Normal rotation notification
+  npm start -- --dry-run      # Test run without sending messages
+  npm start -- --test         # Test Slack connection
+  npm start -- --server       # Start interactive server
+  npm start -- --preview=6    # Preview next 6 periods
+`);
+          process.exit(0);
         }
     }
   }

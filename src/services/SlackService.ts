@@ -124,6 +124,39 @@ export class SlackService {
           text: 'https://postmanlabs.atlassian.net/wiki/spaces/PN/pages/5326733521/Engineering+Review+Session',
         },
       },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: '⏭️ Skip to Next Person',
+              emoji: true,
+            },
+            style: 'primary',
+            action_id: 'skip_rotation',
+            value: JSON.stringify({
+              action: 'skip',
+              currentUserId: user.id,
+              timestamp: Date.now(),
+            }),
+          },
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: '📊 Show Schedule',
+              emoji: true,
+            },
+            action_id: 'show_schedule',
+            value: JSON.stringify({
+              action: 'schedule',
+              timestamp: Date.now(),
+            }),
+          },
+        ],
+      },
     ];
 
     const fallbackText = `PAN Engineering Forum Next Emcee: ${user.name || user.id}\nhttps://postmanlabs.atlassian.net/wiki/spaces/PN/pages/5326733521/Engineering+Review+Session`;
@@ -217,6 +250,113 @@ export class SlackService {
       return {
         success: true,
         messageTs: result.ts,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Update an existing message with new content
+   */
+  async updateMessage(messageTs: string, user: User, periodInfo: PeriodInfo | WeekInfo, config?: RotationConfig): Promise<NotificationResult> {
+    try {
+      const message = this.formatRotationMessage(user, periodInfo, config);
+      
+      const result = await this.client.chat.update({
+        channel: this.channelId,
+        ts: messageTs,
+        blocks: message.blocks,
+        text: message.fallbackText,
+      });
+
+      if (!result.ok) {
+        throw new Error(`Slack API error: ${result.error || 'Unknown error'}`);
+      }
+
+      return {
+        success: true,
+        messageTs: result.ts,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send an ephemeral message (only visible to the user who clicked)
+   */
+  async sendEphemeralMessage(userId: string, text: string): Promise<NotificationResult> {
+    try {
+      const result = await this.client.chat.postEphemeral({
+        channel: this.channelId,
+        user: userId,
+        text,
+      });
+
+      if (!result.ok) {
+        throw new Error(`Slack API error: ${result.error || 'Unknown error'}`);
+      }
+
+      return {
+        success: true,
+        messageTs: result.message_ts,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Send rotation schedule as an ephemeral message
+   */
+  async sendScheduleMessage(userId: string, schedule: Array<{ user: User; periodInfo: PeriodInfo; periodNumber: number }>): Promise<NotificationResult> {
+    try {
+      const blocks: any[] = [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '📅 Upcoming Rotation Schedule',
+            emoji: true,
+          },
+        },
+      ];
+
+      schedule.forEach((item, index) => {
+        const dateRange = formatDateRange(item.periodInfo.startDate, item.periodInfo.endDate);
+        blocks.push({
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Period ${item.periodNumber}* (${dateRange})\n<@${item.user.id}>`,
+          },
+        });
+      });
+
+      const result = await this.client.chat.postEphemeral({
+        channel: this.channelId,
+        user: userId,
+        blocks,
+        text: 'Upcoming rotation schedule',
+      });
+
+      if (!result.ok) {
+        throw new Error(`Slack API error: ${result.error || 'Unknown error'}`);
+      }
+
+      return {
+        success: true,
+        messageTs: result.message_ts,
       };
     } catch (error) {
       return {

@@ -25,9 +25,12 @@ export interface RotationState {
 export interface AppConfig {
   slackBotToken: string;
   slackChannelId: string;
+  slackSigningSecret?: string;
   timezone: string;
   usersFilePath: string;
   stateFilePath: string;
+  enableInteractions?: boolean;
+  serverPort?: number;
 }
 
 export interface PeriodInfo {

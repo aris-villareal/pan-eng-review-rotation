@@ -12,6 +12,13 @@ export class RotationService {
   }
 
   /**
+   * Get the storage service instance
+   */
+  getStorageService(): StorageService {
+    return this.storageService;
+  }
+
+  /**
    * Get the current forum owner based on rotation logic
    */
   async getCurrentForumOwner(): Promise<User> {

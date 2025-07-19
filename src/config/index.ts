@@ -16,9 +16,12 @@ export function getConfig(): AppConfig {
   return {
     slackBotToken: process.env.SLACK_BOT_TOKEN!,
     slackChannelId: process.env.SLACK_CHANNEL_ID!,
+    slackSigningSecret: process.env.SLACK_SIGNING_SECRET,
     timezone: process.env.TIMEZONE || 'UTC',
     usersFilePath: path.join(__dirname, 'users.json'),
     stateFilePath: path.join(__dirname, 'rotation-state.json'),
+    enableInteractions: process.env.ENABLE_INTERACTIONS === 'true',
+    serverPort: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
   };
 }
 
