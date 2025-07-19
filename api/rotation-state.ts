@@ -15,7 +15,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     // Get current rotation state
     const state = await kvStorageService.getRotationStateForAction();
 
-    console.log(`[API] Rotation state requested - current index: ${state.currentIndex}, user: ${state.users[state.currentIndex]?.id}`);
+
 
     // Return the rotation state
     res.status(200).json({

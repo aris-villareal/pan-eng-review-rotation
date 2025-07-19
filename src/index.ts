@@ -29,7 +29,7 @@ class KVRemoteStorageService {
   
   async loadRotationState(): Promise<RotationState> {
     try {
-      console.log(`[KV-Remote] Fetching rotation state from: ${this.apiUrl}`);
+  
       
       // Use built-in fetch or node-fetch fallback
       let fetchFn: any = globalThis.fetch;
@@ -48,7 +48,7 @@ class KVRemoteStorageService {
         throw new Error(`API response invalid: ${result.message || 'Unknown error'}`);
       }
       
-      console.log(`[KV-Remote] Successfully loaded state with ${result.data.users.length} users, current index: ${result.data.currentIndex}`);
+  
       return result.data;
     } catch (error) {
       throw new Error(`Failed to load rotation state from KV API: ${(error as Error).message}`);
@@ -90,12 +90,12 @@ class RotationNotifierApp {
     
     if (useKV) {
       // Use KV storage via API endpoint
-      const kvApiUrl = process.env.KV_API_URL || 'https://pan-eng-review-rotation-je9tdeel3-aris-villareals-projects.vercel.app/api/rotation-state';
-      console.log(`[KV] Using KV storage via API: ${kvApiUrl}`);
+              const kvApiUrl = process.env.KV_API_URL || 'https://pan-eng-review-rotation-ol340z1i2-aris-villareals-projects.vercel.app/api/rotation-state';
+
       this.storageService = new KVRemoteStorageService(kvApiUrl);
     } else {
       // Use local file storage
-      console.log('[Local] Using local file storage');
+
       this.storageService = new StorageService(
         this.config.usersFilePath,
         this.config.stateFilePath

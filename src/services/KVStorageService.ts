@@ -13,12 +13,9 @@ export class KVStorageService {
       const kvState = await kv.get<RotationState>(KVStorageService.ROTATION_STATE_KEY);
       
       if (kvState) {
-        console.log('[KV] Loaded rotation state from KV store');
         return kvState;
       }
 
-      console.log('[KV] No state in KV, initializing with embedded default data');
-      
       // Fallback: use embedded default state
       const defaultState: RotationState = {
         users: [
@@ -50,7 +47,7 @@ export class KVStorageService {
       
       // Save default state to KV for future use
       await this.saveRotationState(defaultState);
-      console.log('[KV] Initialized KV store with embedded default state');
+      console.log('[KV] Initialized KV store with default state');
       
       return defaultState;
     } catch (error) {
@@ -64,9 +61,8 @@ export class KVStorageService {
   async saveRotationState(state: RotationState): Promise<void> {
     try {
       await kv.set(KVStorageService.ROTATION_STATE_KEY, state);
-      console.log('[KV] Saved rotation state to KV store');
     } catch (error) {
-      throw new Error(`Failed to save rotation state to KV: ${(error as Error).message}`);
+      throw new Error(`Failed to save rotation state: ${(error as Error).message}`);
     }
   }
 
@@ -78,7 +74,6 @@ export class KVStorageService {
     state.currentIndex = currentIndex;
     state.lastRotationDate = lastRotationDate;
     await this.saveRotationState(state);
-    console.log(`[KV] Updated rotation state: index=${currentIndex}, date=${lastRotationDate}`);
   }
 
   /**
@@ -120,7 +115,7 @@ export class KVStorageService {
     // Update state in KV
     await this.updateRotationState(nextIndex, new Date().toISOString());
     
-    console.log(`[KV] Advanced rotation from index ${state.currentIndex} to ${nextIndex}, user: ${nextUser.id}`);
+    console.log(`Rotation advanced: ${state.users[state.currentIndex]?.id} → ${nextUser.id}`);
     return nextUser;
   }
 

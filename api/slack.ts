@@ -47,9 +47,6 @@ async function initializeServices() {
   const usersFilePath = path.join(process.cwd(), 'src/config/users.json');
   const stateFilePath = path.join(process.cwd(), 'src/config/rotation-state.json');
 
-  console.log(`[DEBUG] Looking for users file at: ${usersFilePath}`);
-  console.log(`[DEBUG] Looking for state file at: ${stateFilePath}`);
-
   const storageService = new StorageService(usersFilePath, stateFilePath);
   const slackService = new SlackService(cleanBotToken, config.slackChannelId);
   const rotationService = new RotationService(storageService, config.timezone);
@@ -59,9 +56,6 @@ async function initializeServices() {
 
 export default async (req: VercelRequest, res: VercelResponse) => {
   try {
-    console.log(`[DEBUG] Request method: ${req.method}`);
-    console.log(`[DEBUG] Content-Type: ${req.headers['content-type']}`);
-
     // Handle GET requests (for URL verification)
     if (req.method === 'GET') {
       res.status(200).json({ message: 'Slack bot endpoint is running' });
@@ -70,14 +64,11 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
     // Only handle POST requests
     if (req.method !== 'POST') {
-      console.log(`[DEBUG] Method not allowed: ${req.method}`);
       res.status(405).json({ error: 'Method not allowed' });
       return;
     }
 
-    console.log(`[DEBUG] Initializing services...`);
     const { config, slackService, rotationService, getRotationPeriod } = await initializeServices();
-    console.log(`[DEBUG] Services initialized successfully`);
     
     // Get raw request body for signature verification
     let rawBody: string;
@@ -99,24 +90,15 @@ export default async (req: VercelRequest, res: VercelResponse) => {
       rawBody = '';
     }
     
-    console.log(`[DEBUG] Raw body length: ${rawBody.length}`);
-    console.log(`[DEBUG] First 200 chars of raw body: ${rawBody.substring(0, 200)}`);
-    
     // Verify Slack signature using raw body
     const signature = req.headers['x-slack-signature'] as string;
     const timestamp = req.headers['x-slack-request-timestamp'] as string;
     
-    console.log(`[DEBUG] Signature: ${signature}`);
-    console.log(`[DEBUG] Timestamp: ${timestamp}`);
-    
     if (signature && timestamp) {
       // Clean the signing secret of any whitespace/newlines
       const cleanSigningSecret = config.slackSigningSecret.replace(/[\r\n\t\s]/g, '');
-      console.log(`[DEBUG] Original signing secret length: ${config.slackSigningSecret.length}`);
-      console.log(`[DEBUG] Cleaned signing secret length: ${cleanSigningSecret.length}`);
       
       const isValid = verifySlackSignature(rawBody, signature, timestamp, cleanSigningSecret);
-      console.log(`[DEBUG] Signature verification result: ${isValid}`);
       
       if (!isValid) {
         // Generate our own signature for debugging
@@ -124,10 +106,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         const sigBasestring = 'v0:' + timestamp + ':' + rawBody;
         const mySignature = 'v0=' + crypto.createHmac('sha256', cleanSigningSecret).update(sigBasestring, 'utf8').digest('hex');
         
-        console.log(`[DEBUG] Time difference: ${Math.abs(time - parseInt(timestamp))} seconds`);
-        console.log(`[DEBUG] Sig basestring: ${sigBasestring.substring(0, 100)}...`);
-        console.log(`[DEBUG] Expected signature: ${mySignature}`);
-        console.log(`[DEBUG] Received signature: ${signature}`);
+        console.log(`[ERROR] Invalid signature - Time diff: ${Math.abs(time - parseInt(timestamp))}s`);
         
         res.status(401).json({ 
           error: 'Invalid signature',
@@ -140,8 +119,6 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         });
         return;
       }
-    } else {
-      console.log(`[DEBUG] No signature or timestamp provided`);
     }
 
     // Parse the payload
@@ -154,24 +131,21 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         
         if (payloadString) {
           payload = JSON.parse(payloadString);
-          console.log(`[DEBUG] Parsed form-encoded payload type: ${payload.type}`);
         } else {
           throw new Error('No payload parameter found in form data');
         }
       } else {
         // For JSON requests
         payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-        console.log(`[DEBUG] Parsed JSON payload type: ${payload.type}`);
       }
     } catch (e) {
-      console.log(`[DEBUG] Failed to parse payload:`, e);
+      console.log(`[ERROR] Failed to parse payload:`, e);
       res.status(400).json({ error: 'Invalid payload format' });
       return;
     }
 
     // Handle URL verification
     if (payload.type === 'url_verification') {
-      console.log(`[DEBUG] URL verification challenge: ${payload.challenge}`);
       res.status(200).json({ challenge: payload.challenge });
       return;
     }
@@ -181,12 +155,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
       const action = payload.actions?.[0];
       const userId = payload.user?.id;
 
-      console.log(`[DEBUG] Interactive payload received`);
-      console.log(`[DEBUG] Action: ${action?.action_id}`);
-      console.log(`[DEBUG] User ID: ${userId}`);
-
       if (!action || !userId) {
-        console.log(`[DEBUG] Invalid action payload - missing action or userId`);
         res.status(400).json({ error: 'Invalid action payload' });
         return;
       }
@@ -195,8 +164,6 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
       if (action.action_id === 'skip_rotation') {
         try {
-          console.log(`[DEBUG] Processing skip_rotation with KV storage...`);
-          
           // Use KV storage for persistent skip rotation
           const { KVStorageService } = await import('../src/services/KVStorageService');
           const kvStorageService = new KVStorageService();
@@ -207,17 +174,13 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           const currentDate = new Date();
           const periodInfo = getRotationPeriod(currentDate, state.config);
 
-          console.log(`[DEBUG] KV skip: New user is ${newUser.id} at index ${state.currentIndex}`);
-
           // Update the original message
           const originalMessageTs = payload.message?.ts;
           if (originalMessageTs) {
-            console.log(`[DEBUG] Updating message: ${originalMessageTs}`);
             await slackService.updateMessage(originalMessageTs, newUser, periodInfo, state.config);
           }
 
           // Send confirmation
-          console.log(`[DEBUG] Sending ephemeral message to ${userId}`);
           await slackService.sendEphemeralMessage(
             userId,
             `✅ Rotation skipped! Next emcee is now <@${newUser.id}>.`
@@ -241,8 +204,6 @@ export default async (req: VercelRequest, res: VercelResponse) => {
         }
       } else if (action.action_id === 'show_schedule') {
         try {
-          console.log(`[DEBUG] Processing show_schedule with KV storage...`);
-          
           // Use KV storage to get current rotation state
           const { KVStorageService } = await import('../src/services/KVStorageService');
           const kvStorageService = new KVStorageService();
@@ -300,14 +261,12 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           res.status(200).json({ text: 'Error occurred' });
         }
       } else {
-        console.log(`[DEBUG] Unknown action: ${action.action_id}`);
         res.status(200).json({ text: 'Unknown action' });
       }
       return;
     }
 
     // Default response
-    console.log(`[DEBUG] Default response for payload type: ${payload.type}`);
     res.status(200).json({ message: 'OK' });
 
   } catch (error) {
