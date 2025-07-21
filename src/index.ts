@@ -154,7 +154,10 @@ class RotationNotifierApp {
       }
       
       // Get current forum owner and rotation state
-      const currentUser = await this.rotationService.getCurrentForumOwner();
+      // Use read-only method for KV to avoid auto-advancement in GitHub Actions
+      const currentUser = this.storageService instanceof KVRemoteStorageService 
+        ? await this.rotationService.getCurrentForumOwnerReadOnly()
+        : await this.rotationService.getCurrentForumOwner();
       const rotationState = await this.storageService.loadRotationState();
       const currentDate = new Date();
       const periodInfo = getRotationPeriod(currentDate, rotationState.config);
@@ -243,7 +246,9 @@ class RotationNotifierApp {
     console.log('📊 Rotation Statistics:');
     
     const stats = await this.rotationService.getRotationStats();
-    const currentUser = await this.rotationService.getCurrentForumOwner();
+    const currentUser = this.storageService instanceof KVRemoteStorageService 
+      ? await this.rotationService.getCurrentForumOwnerReadOnly()
+      : await this.rotationService.getCurrentForumOwner();
     
     console.log(`Total users: ${stats.totalUsers}`);
     console.log(`Current user: ${currentUser.name || currentUser.id} (index ${stats.currentUserIndex})`);

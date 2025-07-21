@@ -37,6 +37,15 @@ export class RotationService {
   }
 
   /**
+   * Get the current forum owner without advancing rotation (read-only)
+   * Used by GitHub Actions and other read-only contexts
+   */
+  async getCurrentForumOwnerReadOnly(): Promise<User> {
+    const state = await this.storageService.loadRotationState();
+    return this.getUserAtIndex(state, state.currentIndex);
+  }
+
+  /**
    * Preview who will be the forum owner for a specific date
    */
   async previewForumOwner(targetDate: Date): Promise<User> {
