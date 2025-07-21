@@ -38,6 +38,8 @@ async function initializeServices() {
     throw new Error('ENABLE_INTERACTIONS must be set to true');
   }
 
+  console.log(`🔧 Slack API initialized with channel: ${config.slackChannelId}`);
+
   const { StorageService } = await import('../src/services/StorageService');
   const { SlackService } = await import('../src/services/SlackService');
   const { RotationService } = await import('../src/services/RotationService');
@@ -244,7 +246,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           
           await slackService.sendScheduleMessage(userId, schedule);
           
-          console.log(`Schedule sent to ${userId} (using KV data with ${state.users.length} users, current index: ${state.currentIndex})`);
+          console.log(`Schedule sent to ${userId} in channel ${config.slackChannelId} (using KV data with ${state.users.length} users, current index: ${state.currentIndex})`);
           res.status(200).json({ text: 'Schedule sent!' });
         } catch (error) {
           console.error('Error showing schedule:', error);
