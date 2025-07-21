@@ -1,30 +1,41 @@
 # Slack Forum Owner Rotation Notifier
 
-A TypeScript application that automatically manages weekly forum owner rotations and sends notifications to Slack channels. Perfect for teams that need to rotate responsibilities like forum moderation, support duties, or weekly tasks.
+A TypeScript application that automatically manages weekly forum owner rotations with interactive Slack controls and persistent state management. Perfect for teams that need to rotate responsibilities like forum moderation, support duties, or weekly tasks.
 
 ## 🌟 Features
 
-- **Automated Weekly Notifications**: Sends rich Slack messages every Monday
+- **Interactive Slack Buttons**: Skip to next person and view upcoming schedule
+- **Persistent State Management**: Uses Vercel KV (Upstash) for reliable state storage
+- **Automated Weekly Notifications**: Sends rich Slack messages every Monday at 10:00 AM UTC
 - **Smart Rotation Logic**: Uses ISO week numbers for consistent rotation
-- **GitHub Actions Integration**: Zero-cost automated scheduling
-- **Flexible Configuration**: Environment-based settings with validation
+- **Dual Deployment**: Vercel serverless functions + GitHub Actions
+- **Manual Control**: Skip rotations on-demand while maintaining sync
 - **Comprehensive CLI**: Test, preview, and manage rotations locally
-- **Error Handling**: Robust error handling with detailed logging
+- **Zero-Config KV**: Automatic fallback to embedded defaults
 - **TypeScript**: Full type safety and modern JavaScript features
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  GitHub Actions │───▶│  Node.js App    │───▶│   Slack API     │
-│   (Scheduler)   │    │  (TypeScript)   │    │   (Bot Token)   │
+│  GitHub Actions │───▶│    CLI App      │───▶│   Slack API     │
+│   (Weekly @10AM)│    │  (Read-Only)    │    │ (Notifications) │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                 │
                                 ▼
                        ┌─────────────────┐
-                       │   JSON Storage  │
-                       │ (User Rotation) │
-                       └─────────────────┘
+                       │   Vercel KV     │◀────┬──────────────┐
+                       │   (Upstash)     │     │              │
+                       └─────────────────┘     │              │
+                                ▲              │              │
+                                │              │              │
+┌─────────────────┐    ┌─────────────────┐     │              │
+│   Slack Users   │───▶│ Vercel Functions│─────┘              │
+│ (Button Clicks) │    │ (Interactive)   │                    │
+└─────────────────┘    └─────────────────┘                    │
+                                │                              │
+                                └──────────────────────────────┘
+                                       Slack API
 ```
 
 ## 🚀 Quick Start
@@ -46,134 +57,147 @@ npm install
 
 ### 3. Configure Slack App Permissions
 
-In your Slack app settings:
-
-**OAuth & Permissions** → **Scopes** → **Bot Token Scopes**:
+**OAuth & Permissions** → **Bot Token Scopes**:
 - `chat:write` - Send messages to channels
+- `chat:write.public` - Send to channels without joining
 
-**Note**: Only `chat:write` is required. The app has been optimized for minimal permissions.
+**Interactive Components**:
+1. Go to **Interactive Components**
+2. Turn on "Interactivity"
+3. **Request URL**: `https://your-vercel-app.vercel.app/api/slack`
+4. Save Changes
 
-**Install App** → **Install to Workspace** → Copy the **Bot User OAuth Token**
+### 4. Deploy to Vercel
 
-### 4. Environment Configuration
-
-Create a `.env` file:
+#### Setup Vercel Project
 
 ```bash
-# Required
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy project
+vercel
+
+# Follow prompts to create project
+```
+
+#### Add Environment Variables in Vercel
+
+1. Go to your Vercel project dashboard
+2. **Settings** → **Environment Variables**
+3. Add these variables for **Production**, **Preview**, and **Development**:
+
+```bash
 SLACK_BOT_TOKEN=xoxb-your-bot-token-here
 SLACK_CHANNEL_ID=C1234567890
-
-# Optional
+SLACK_SIGNING_SECRET=your-signing-secret-here
+ENABLE_INTERACTIONS=true
 TIMEZONE=America/New_York
-NODE_ENV=production
 ```
 
-**Finding your Channel ID:**
-1. Right-click on your Slack channel
-2. Select "Copy link"
-3. Extract ID from URL: `https://workspace.slack.com/archives/C1234567890`
+#### Setup Upstash KV Database
 
-### 5. Configure Users
+1. In Vercel dashboard: **Storage** → **Create Database**
+2. Select **KV** (powered by Upstash)
+3. Name it (e.g., "rotation-state")
+4. **Connect to Project** → Select your project
+5. Vercel will automatically add KV environment variables
 
-Edit `src/config/users.json`:
+### 5. Update Slack App Interactive URL
 
-```json
-{
-  "users": [
-    {
-      "id": "U123456789",
-      "startDate": "2025-07-18"
-    },
-    {
-      "id": "U987654321",
-      "startDate": "2025-07-18"
-    }
-  ],
-  "currentIndex": 0,
-  "lastRotationDate": "2025-07-18",
-  "startDate": "2025-07-18"
-}
-```
+After Vercel deployment:
+1. Copy your Vercel app URL: `https://your-app.vercel.app`
+2. In Slack App settings: **Interactive Components**
+3. Update **Request URL** to: `https://your-app.vercel.app/api/slack`
 
-**Note**: Names are not required! Slack automatically displays real names when using `<@U123456789>` mentions.
+### 6. Configure GitHub Actions
 
-**Finding Slack User IDs:**
-```bash
-# Method 1: From user profile URL
-https://workspace.slack.com/team/U123456789
+**Add Repository Secrets** (Settings → Secrets and variables → Actions):
+- `SLACK_BOT_TOKEN`: Your bot token
+- `SLACK_CHANNEL_ID`: Your channel ID
 
-# Method 2: Mention user in Slack, then copy the mention
-@john.doe → <@U123456789|john.doe>
-```
+**Add Repository Variables** (optional):
+- `TIMEZONE`: Your preferred timezone (default: UTC)
 
-### 6. Test the Setup
+### 7. Test the Setup
 
 ```bash
-# Build the project
-npm run build
+# Test Slack connection locally
+npm start -- --test --use-kv
 
-# Test Slack connection
-npm start -- --test
+# Preview current rotation
+npm start -- --dry-run --use-kv
 
-# Preview current rotation (dry run)
-npm start -- --dry-run
-
-# Show rotation statistics
-npm start -- --stats
+# Test Vercel deployment
+curl https://your-app.vercel.app/api/slack
 ```
-
-### 7. Setup GitHub Actions
-
-1. **Add Repository Secrets** (Settings → Secrets and variables → Actions):
-   - `SLACK_BOT_TOKEN`: Your bot token
-   - `SLACK_CHANNEL_ID`: Your channel ID
-
-2. **Add Repository Variables** (optional):
-   - `TIMEZONE`: Your preferred timezone (default: UTC)
-
-3. **Enable Actions**: The workflow will run automatically every Monday at 9 AM UTC
 
 ## 📋 Usage
+
+### Slack Interactive Features
+
+**Skip to Next Person**:
+- Click "⏭️ Skip to Next" button in rotation messages
+- Immediately advances rotation and updates KV state
+- Updates message with new current user
+
+**View Upcoming Schedule**:
+- Click "📅 Show Schedule" button
+- Shows next 6 weeks of rotation (ephemeral message)
+- Reflects any manual skips made
 
 ### CLI Commands
 
 ```bash
-# Send weekly notification (production)
+# Send weekly notification with KV storage
+npm start -- --use-kv
+
+# Send weekly notification with local files
 npm start
 
-# Test Slack connection and send test message
-npm start -- --test
+# Test Slack connection
+npm start -- --test --use-kv
 
-# Preview message without sending
-npm start -- --dry-run
+# Preview message without sending (KV mode)
+npm start -- --dry-run --use-kv
 
-# Show rotation statistics
-npm start -- --stats
+# Show rotation statistics (KV mode)
+npm start -- --stats --use-kv
 
-# Preview upcoming rotations (4 weeks by default)
-npm start -- --preview=6
+# Preview upcoming rotations
+npm start -- --preview=6 --use-kv
 ```
 
-### Development Commands
+### Operational Commands
 
 ```bash
-# Run in development mode
-npm run dev
+# Check KV state remotely
+curl https://your-app.vercel.app/api/rotation-state
 
-# Run tests
-npm test
-npm run test:watch
-npm run test:coverage
-
-# Linting and formatting
-npm run lint
-npm run lint:fix
-npm run format
-
-# Build for production
-npm run build
+# Validate Slack endpoint
+curl https://your-app.vercel.app/api/slack
 ```
+
+## 🗄️ Storage Options
+
+### Option 1: Vercel KV (Recommended for Production)
+
+**Advantages**:
+- ✅ Persistent across all deployments
+- ✅ Shared between Slack buttons and GitHub Actions
+- ✅ Automatic backups and scaling
+- ✅ Zero-config initialization
+
+**Usage**: Add `--use-kv` flag to CLI commands
+
+### Option 2: Local Files (Development/Testing)
+
+**Advantages**:
+- ✅ Simple file-based storage
+- ✅ Version controlled state
+- ✅ No external dependencies
+
+**Usage**: Default behavior without `--use-kv` flag
 
 ## 🔧 Configuration
 
@@ -183,34 +207,46 @@ npm run build
 |----------|----------|---------|-------------|
 | `SLACK_BOT_TOKEN` | ✅ | - | Slack bot OAuth token |
 | `SLACK_CHANNEL_ID` | ✅ | - | Target Slack channel ID |
+| `SLACK_SIGNING_SECRET` | ✅* | - | For signature verification (*Required for buttons) |
+| `ENABLE_INTERACTIONS` | ❌ | false | Enable interactive features |
 | `TIMEZONE` | ❌ | UTC | Timezone for scheduling |
-| `NODE_ENV` | ❌ | production | Environment mode |
+| `KV_REST_API_URL` | Auto | - | Vercel KV endpoint (auto-configured) |
+| `KV_REST_API_TOKEN` | Auto | - | Vercel KV token (auto-configured) |
 
 ### User Configuration
 
-The `src/config/users.json` file contains:
+The rotation starts with embedded defaults but can be customized:
 
-- **users**: Array of rotation participants
-- **currentIndex**: Current position in rotation (0-based)
-- **lastRotationDate**: ISO date of last rotation
-- **startDate**: ISO date when rotation began
+```json
+{
+  "users": [
+    { "id": "aris.villareal", "startDate": "2025-07-18" },
+    { "id": "steeve.bete", "startDate": "2025-07-18" },
+    { "id": "eddie.davies", "startDate": "2025-07-18" }
+  ],
+  "currentIndex": 0,
+  "lastRotationDate": "2025-07-21",
+  "startDate": "2025-07-18",
+  "config": {
+    "frequency": "weekly",
+    "schedule": { "time": "09:00" }
+  }
+}
+```
 
-### GitHub Actions Workflow
-
-The workflow (`Weekly Forum Owner Rotation`) can be:
-
-- **Automatically triggered**: Every Monday at 9 AM UTC
-- **Manually triggered**: With options for dry-run or connection testing
+**Finding Slack User IDs**:
+- Use display names without @ symbol (e.g., `"aris.villareal"`)
+- Or use full User IDs (e.g., `"U123456789"`)
 
 ## 📱 Slack Message Format
 
-The bot sends rich messages with:
+The bot sends rich interactive messages:
 
 ```
 🏆 Forum Owner Rotation
-Week of Jan 8 - Jan 14
+Week of Jan 22 - Jan 28, 2025
 
-This week's forum owner: @john.doe
+This week's forum owner: @eddie.davies
 
 Role responsibilities:
 • Monitor forum discussions  
@@ -218,115 +254,167 @@ Role responsibilities:
 • Facilitate team communication
 • Weekly summary on Friday
 
+[⏭️ Skip to Next]  [📅 Show Schedule]
+
 Questions? Reach out to this week's owner! 👋
 ```
 
-## 🔄 Rotation Logic
+## 🔄 Deployment Architecture
 
-- **Week-based**: Uses ISO week numbers for consistency
-- **Round-robin**: Cycles through users in order
-- **Catch-up**: Automatically advances if weeks are missed
-- **Timezone-aware**: Respects configured timezone
+### Vercel Functions (Interactive Features)
+- **api/slack.ts**: Handles button clicks and signature verification
+- **api/rotation-state.ts**: Provides KV state access for GitHub Actions
+- **Auto-scaling**: Serverless functions scale automatically
+- **Persistent State**: All button interactions saved to KV
+
+### GitHub Actions (Weekly Notifications)
+- **Read-Only**: Only reads current state, never modifies
+- **Scheduled**: Runs every Monday at 10:00 AM UTC
+- **Reliable**: Uses committed workflow in repository
+- **Uses KV**: Fetches current rotation state via API
+
+### State Synchronization
+- **Single Source of Truth**: Vercel KV database
+- **Consistent**: Both Slack buttons and GitHub Actions use same state
+- **Persistent**: Manual skips persist and affect weekly notifications
+
+## 🛠️ Operational Tips
+
+### Managing Vercel KV
+
+**View Current State**:
+```bash
+curl https://your-app.vercel.app/api/rotation-state | jq
+```
+
+**Check Database in Vercel**:
+1. Vercel Dashboard → Storage → Your KV Database
+2. View data, metrics, and connection info
+
+**Backup Strategy**:
+- KV data is automatically backed up by Upstash
+- Export state via API for additional backups
+- State can be reconstructed from repository history if needed
+
+### Monitoring and Debugging
+
+**Check Vercel Function Logs**:
+1. Vercel Dashboard → Functions
+2. View real-time logs for api/slack.ts
+
+**GitHub Actions Logs**:
+1. Repository → Actions
+2. View logs for weekly runs
+
+**Test Endpoints**:
+```bash
+# Test Slack endpoint health
+curl https://your-app.vercel.app/api/slack
+
+# Check current rotation state  
+curl https://your-app.vercel.app/api/rotation-state
+```
+
+### Common Maintenance Tasks
+
+**Update User List**:
+- Modify the embedded defaults in `src/services/KVStorageService.ts`
+- Or manually update via KV dashboard
+- Changes take effect immediately
+
+**Reset Rotation**:
+- Clear KV database in Vercel dashboard
+- Next access will reinitialize with defaults
+
+**Change Schedule**:
+- Update cron schedule in `.github/workflows/weekly-notification.yml`
+- Changes take effect on next push
 
 ## 🧪 Testing
 
-### Unit Tests
+### Local Development
 
 ```bash
-npm test
-```
-
-### Integration Testing
-
-```bash
-# Test full workflow without sending message
+# Test with local storage
 npm start -- --dry-run
 
+# Test with KV integration
+npm start -- --dry-run --use-kv
+
 # Test Slack connectivity
-npm start -- --test
+npm start -- --test --use-kv
 ```
 
-### Manual Testing
+### Production Testing
 
 ```bash
-# Check rotation preview
-npm start -- --preview=4
+# Manual trigger GitHub Action (with dry-run)
+# Go to Actions tab → Weekly Forum Owner Rotation → Run workflow
+# Select "Run in dry-run mode"
 
-# View current statistics
-npm start -- --stats
+# Test Vercel functions
+curl -X POST https://your-app.vercel.app/api/slack
 ```
 
 ## 🛠️ Troubleshooting
 
 ### Common Issues
 
-**"Missing required environment variables"**
-- Ensure `.env` file exists with `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID`
-- Check token format starts with `xoxb-`
+**"Invalid signature" from Slack**:
+- Verify `SLACK_SIGNING_SECRET` is correctly set in Vercel
+- Ensure request URL in Slack app matches deployed Vercel URL
+- Check signing secret format (no extra whitespace)
 
-**"Slack connection failed"**
-- Verify bot token is correct
-- Ensure bot is added to the target channel
-- Check bot has required permissions (`chat:write`)
+**"Missing KV environment variables"**:
+- Verify KV database is connected to Vercel project
+- Check `KV_REST_API_URL` and `KV_REST_API_TOKEN` exist
+- Redeploy Vercel project after adding KV
 
-**"User not found at index"**
-- Check `users.json` has valid user entries
-- Verify `currentIndex` is within array bounds
-- Validate user ID format (should start with `U`)
+**GitHub Action "should not update state" error**:
+- Verify you're using the latest version with read-only KV access
+- Check GitHub Action is using `--use-kv` flag
+- Ensure KV API endpoint is accessible
 
-**"Invalid Slack channel ID format"**
-- Channel ID should be ~11 characters starting with `C`
-- Get ID from channel URL or Slack settings
+**Button clicks not working**:
+- Verify `ENABLE_INTERACTIONS=true` in Vercel
+- Check Slack app Interactive Components URL is correct
+- Test Vercel function endpoint directly
 
-**GitHub Actions failures**
-- Check repository secrets are set correctly
-- Verify workflow has required permissions
-- Review action logs for specific errors
-
-### Debugging
-
-Enable debug logging:
+### Debug Commands
 
 ```bash
-NODE_ENV=development npm start -- --dry-run
-```
+# Check KV state
+curl https://your-app.vercel.app/api/rotation-state | jq '.data | {currentIndex, currentUser: .users[.currentIndex].id}'
 
-Check rotation state:
+# Test local KV integration
+npm start -- --stats --use-kv
 
-```bash
-npm start -- --stats
-```
-
-Validate configuration:
-
-```bash
-npm start -- --test
+# Validate environment
+npm start -- --test --use-kv
 ```
 
 ## 🔐 Security
 
-- **Secrets Management**: Use GitHub secrets for sensitive data
-- **Token Scope**: Minimal required Slack permissions
-- **Validation**: Input validation and error handling
-- **No Data Storage**: Only local JSON files, no external databases
+- **Signature Verification**: All Slack requests validated with signing secret
+- **Environment Variables**: Sensitive data stored in Vercel environment
+- **Minimal Permissions**: Only required Slack scopes
+- **Read-Only GitHub Actions**: Cannot modify rotation state
+- **HTTPS Only**: All communication encrypted
 
-## 📈 Future Enhancements
+## 📈 Scaling and Performance
 
-- [ ] Web dashboard for user management
-- [ ] Slack slash commands for manual rotation
-- [ ] Holiday/vacation handling
-- [ ] Multiple rotation groups
-- [ ] Database storage option
-- [ ] Analytics and reporting
-- [ ] Email notifications backup
-- [ ] Custom message templates
+- **Serverless**: Auto-scaling Vercel functions
+- **Global CDN**: Fast response times worldwide
+- **Upstash KV**: Redis-compatible with global replication
+- **Rate Limiting**: Built-in Slack API rate limiting
+- **Efficient**: Minimal KV operations and Slack calls
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
+3. Test with both local and KV storage modes
+4. Ensure Vercel deployment works
 5. Submit a pull request
 
 ## 📄 License
