@@ -2,10 +2,6 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '@vercel/kv';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
     // Get current state
     const currentState = await kv.get('rotation-state');
@@ -14,7 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'No rotation state found in KV' });
     }
 
-    console.log('Current state:', JSON.stringify(currentState, null, 2));
+    console.log('Current state config:', JSON.stringify(currentState.config, null, 2));
 
     // Update the configuration to include dayOfWeek: 5 (Friday)
     const updatedState = {
@@ -25,21 +21,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ...currentState.config.schedule,
           dayOfWeek: 5  // Friday
         }
-      },
-      // Ensure steeve.bete is current (index 1)
-      currentIndex: 1,
-      lastRotationDate: new Date().toISOString()
+      }
     };
 
     // Save updated state
     await kv.set('rotation-state', updatedState);
     
-    console.log('Updated KV state with dayOfWeek: 5 and steeve.bete as current');
+    console.log('Updated KV state with Friday configuration');
 
     res.status(200).json({
       success: true,
-      message: 'KV state updated successfully',
-      updatedConfig: updatedState.config,
+      message: 'KV state updated with Friday schedule',
+      beforeConfig: currentState.config,
+      afterConfig: updatedState.config,
       currentUser: updatedState.users[updatedState.currentIndex]
     });
 
