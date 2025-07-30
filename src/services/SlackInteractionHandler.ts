@@ -49,20 +49,18 @@ export class SlackInteractionHandler {
           await this.slackService.updateMessage(originalMessageTs, newUser, periodInfo, state.config);
         }
 
-        // Send confirmation to the user who clicked
-        await this.slackService.sendEphemeralMessage(
-          userId,
-          `✅ Rotation skipped! Next emcee is now <@${newUser.id}>.`
+        // Send confirmation to the channel (visible to everyone)
+        await this.slackService.sendPublicMessage(
+          `✅ Rotation skipped by <@${userId}>! Next emcee is now <@${newUser.id}>.`
         );
 
         logger.info(`Rotation skipped by user ${userId}. New emcee: ${newUser.id}`);
       } catch (error) {
         logger.error('Error handling skip rotation:', error);
         
-        // Send error message to user
-        await this.slackService.sendEphemeralMessage(
-          body.user.id,
-          '❌ Sorry, there was an error skipping the rotation. Please try again or contact an admin.'
+        // Send error message to channel
+        await this.slackService.sendPublicMessage(
+          `❌ <@${body.user.id}> tried to skip the rotation, but there was an error. Please try again or contact an admin.`
         );
       }
     });
@@ -108,20 +106,18 @@ export class SlackInteractionHandler {
         // Send new rotation notification
         await this.slackService.sendRotationNotification(newUser, periodInfo, state.config);
 
-        // Send confirmation to the user who used the command
-        await this.slackService.sendEphemeralMessage(
-          userId,
-          `✅ Rotation skipped! Next emcee is now <@${newUser.id}>.`
+        // Send confirmation to the channel (visible to everyone)
+        await this.slackService.sendPublicMessage(
+          `✅ Rotation skipped by <@${userId}>! Next emcee is now <@${newUser.id}>.`
         );
 
         logger.info(`Rotation skipped via slash command by user ${userId}. New emcee: ${newUser.id}`);
       } catch (error) {
         logger.error('Error handling skip rotation slash command:', error);
         
-        // Send error response
-        await this.slackService.sendEphemeralMessage(
-          body.user_id,
-          '❌ Sorry, there was an error skipping the rotation. Please try again or contact an admin.'
+        // Send error response to channel
+        await this.slackService.sendPublicMessage(
+          `❌ <@${body.user_id}> tried to skip the rotation, but there was an error. Please try again or contact an admin.`
         );
       }
     });

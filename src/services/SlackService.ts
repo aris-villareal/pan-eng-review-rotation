@@ -317,6 +317,35 @@ export class SlackService {
   }
 
   /**
+   * Send a public message with blocks formatting to the channel
+   */
+  async sendPublicMessage(text: string, blocks?: any[]): Promise<NotificationResult> {
+    try {
+      const result = await this.client.chat.postMessage({
+        channel: this.channelId,
+        text,
+        blocks,
+        unfurl_links: false,
+        unfurl_media: false,
+      });
+
+      if (!result.ok) {
+        throw new Error(`Slack API error: ${result.error || 'Unknown error'}`);
+      }
+
+      return {
+        success: true,
+        messageTs: result.ts,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
    * Send rotation schedule as an ephemeral message
    */
   async sendScheduleMessage(userId: string, schedule: Array<{ user: User; periodInfo: PeriodInfo; periodNumber: number }>): Promise<NotificationResult> {

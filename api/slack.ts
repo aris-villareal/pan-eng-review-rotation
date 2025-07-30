@@ -180,10 +180,9 @@ export default async (req: VercelRequest, res: VercelResponse) => {
             await slackService.updateMessage(originalMessageTs, newUser, periodInfo, state.config);
           }
 
-          // Send confirmation
-          await slackService.sendEphemeralMessage(
-            userId,
-            `✅ Rotation skipped! Next emcee is now <@${newUser.id}>.`
+          // Send confirmation to the channel (visible to everyone)
+          await slackService.sendPublicMessage(
+            `✅ Rotation skipped by <@${userId}>! Next emcee is now <@${newUser.id}>.`
           );
 
           console.log(`Rotation skipped by ${userId}. New emcee: ${newUser.id} (persisted in KV)`);
@@ -192,12 +191,11 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           console.error('Error handling skip rotation:', error);
           
           try {
-            await slackService.sendEphemeralMessage(
-              userId,
-              '❌ Sorry, there was an error skipping the rotation.'
+            await slackService.sendPublicMessage(
+              `❌ <@${userId}> tried to skip the rotation, but there was an error. Please try again or contact an admin.`
             );
-          } catch (ephemeralError) {
-            console.error('Error sending ephemeral error message:', ephemeralError);
+          } catch (publicError) {
+            console.error('Error sending public error message:', publicError);
           }
           
           res.status(200).json({ text: 'Error occurred' });
