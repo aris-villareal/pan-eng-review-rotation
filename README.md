@@ -6,7 +6,7 @@ A TypeScript application that automatically manages weekly forum owner rotations
 
 - **Interactive Slack Buttons**: Skip to next person and view upcoming schedule
 - **Persistent State Management**: Uses Vercel KV (Upstash) for reliable state storage
-- **Automated Weekly Notifications**: Sends rich Slack messages every Monday at 10:00 AM UTC
+- **Automated Weekly Notifications**: Sends rich Slack messages every Friday at 10:00 AM UTC
 - **Smart Rotation Logic**: Uses ISO week numbers for consistent rotation
 - **Dual Deployment**: Vercel serverless functions + GitHub Actions
 - **Manual Control**: Skip rotations on-demand while maintaining sync
@@ -269,7 +269,7 @@ Questions? Reach out to this week's owner! 👋
 
 ### GitHub Actions (Weekly Notifications)
 - **Read-Only**: Only reads current state, never modifies
-- **Scheduled**: Runs every Monday at 10:00 AM UTC
+- **Scheduled**: Runs every Friday at 10:00 AM UTC
 - **Reliable**: Uses committed workflow in repository
 - **Uses KV**: Fetches current rotation state via API
 

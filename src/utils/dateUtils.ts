@@ -34,15 +34,61 @@ export function getISOWeek(date: Date): WeekInfo {
 }
 
 /**
+ * Get custom week info starting from a specific day
+ */
+export function getCustomWeek(date: Date, weekStartDay: number = 1): WeekInfo {
+  // weekStartDay: 0=Sunday, 1=Monday, 2=Tuesday, ..., 6=Saturday
+  const target = new Date(date.valueOf());
+  
+  // Calculate days since the week start day
+  const currentDay = date.getUTCDay(); // 0=Sunday, 1=Monday, etc.
+  const daysSinceWeekStart = (currentDay - weekStartDay + 7) % 7;
+  
+  // Calculate week start and end
+  const startDate = new Date(date);
+  startDate.setUTCDate(date.getUTCDate() - daysSinceWeekStart);
+  startDate.setUTCHours(0, 0, 0, 0);
+
+  const endDate = new Date(startDate);
+  endDate.setUTCDate(startDate.getUTCDate() + 6);
+  endDate.setUTCHours(23, 59, 59, 999);
+
+  // Calculate week number based on the custom week start
+  const epochStart = new Date(Date.UTC(2024, 0, 1)); // Reference date (Monday)
+  const epochWeekStart = new Date(epochStart);
+  const epochDayOfWeek = epochStart.getUTCDay();
+  const daysToFirstWeekStart = (weekStartDay - epochDayOfWeek + 7) % 7;
+  epochWeekStart.setUTCDate(epochStart.getUTCDate() + daysToFirstWeekStart);
+  
+  const weeksSinceEpoch = Math.floor((startDate.getTime() - epochWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  const weekNumber = weeksSinceEpoch + 1;
+
+  return {
+    weekNumber,
+    periodNumber: weekNumber,
+    startDate,
+    endDate,
+    year: target.getUTCFullYear(),
+    type: 'week',
+  };
+}
+
+/**
  * Calculate the number of weeks between two dates
  */
-export function getWeeksBetween(startDate: Date, endDate: Date): number {
-  const start = getISOWeek(startDate);
-  const end = getISOWeek(endDate);
+export function getWeeksBetween(startDate: Date, endDate: Date, weekStartDay: number = 1): number {
+  const start = weekStartDay === 1 ? getISOWeek(startDate) : getCustomWeek(startDate, weekStartDay);
+  const end = weekStartDay === 1 ? getISOWeek(endDate) : getCustomWeek(endDate, weekStartDay);
   
   // Handle year transitions
   if (start.year === end.year) {
     return end.weekNumber - start.weekNumber;
+  }
+  
+  // For custom weeks, calculate based on actual time difference
+  if (weekStartDay !== 1) {
+    const timeDiff = end.startDate.getTime() - start.startDate.getTime();
+    return Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000));
   }
   
   // Get weeks remaining in start year + weeks in end year
@@ -88,10 +134,10 @@ export function getCurrentDateInTimezone(timezone: string): Date {
 /**
  * Check if it's a new week since the last rotation
  */
-export function isNewWeek(lastRotationDate: string, currentDate: Date): boolean {
+export function isNewWeek(lastRotationDate: string, currentDate: Date, weekStartDay: number = 1): boolean {
   const lastDate = new Date(lastRotationDate);
-  const lastWeek = getISOWeek(lastDate);
-  const currentWeek = getISOWeek(currentDate);
+  const lastWeek = weekStartDay === 1 ? getISOWeek(lastDate) : getCustomWeek(lastDate, weekStartDay);
+  const currentWeek = weekStartDay === 1 ? getISOWeek(currentDate) : getCustomWeek(currentDate, weekStartDay);
   
   return lastWeek.weekNumber !== currentWeek.weekNumber || lastWeek.year !== currentWeek.year;
 }
@@ -104,14 +150,15 @@ export function getRotationPeriod(date: Date, config: RotationConfig): PeriodInf
     case 'daily':
       return getDayPeriod(date);
     case 'weekly':
-      const weekInfo = getISOWeek(date);
+      const weekStartDay = config.schedule?.dayOfWeek || 1; // Default to Monday if not specified
+      const weekInfo = weekStartDay === 1 ? getISOWeek(date) : getCustomWeek(date, weekStartDay);
       return {
         ...weekInfo,
         periodNumber: weekInfo.weekNumber,
         type: 'week',
       };
     case 'bi-weekly':
-      return getBiWeeklyPeriod(date);
+      return getBiWeeklyPeriod(date, config);
     case 'monthly':
       return getMonthPeriod(date);
     case 'custom':
@@ -129,9 +176,11 @@ export function getPeriodsBetween(startDate: Date, endDate: Date, config: Rotati
     case 'daily':
       return getDaysBetween(startDate, endDate);
     case 'weekly':
-      return getWeeksBetween(startDate, endDate);
+      const weekStartDay = config.schedule?.dayOfWeek || 1; // Default to Monday if not specified
+      return getWeeksBetween(startDate, endDate, weekStartDay);
     case 'bi-weekly':
-      return Math.floor(getWeeksBetween(startDate, endDate) / 2);
+      const biWeekStartDay = config.schedule?.dayOfWeek || 1;
+      return Math.floor(getWeeksBetween(startDate, endDate, biWeekStartDay) / 2);
     case 'monthly':
       return getMonthsBetween(startDate, endDate);
     case 'custom':
@@ -177,8 +226,9 @@ function getDayPeriod(date: Date): PeriodInfo {
 /**
  * Get bi-weekly period info
  */
-function getBiWeeklyPeriod(date: Date): PeriodInfo {
-  const weekInfo = getISOWeek(date);
+function getBiWeeklyPeriod(date: Date, config: RotationConfig): PeriodInfo {
+  const weekStartDay = config.schedule?.dayOfWeek || 1;
+  const weekInfo = weekStartDay === 1 ? getISOWeek(date) : getCustomWeek(date, weekStartDay);
   const biWeekNumber = Math.ceil(weekInfo.weekNumber / 2);
   
   return {

@@ -40,6 +40,7 @@ export class KVStorageService {
         config: {
           frequency: "weekly",
           schedule: {
+            dayOfWeek: 5,
             time: "09:00"
           }
         }

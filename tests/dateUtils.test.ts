@@ -1,4 +1,4 @@
-import { getISOWeek, getWeeksBetween, isNewWeek, formatDateRange } from '../src/utils/dateUtils';
+import { getISOWeek, getCustomWeek, getWeeksBetween, isNewWeek, formatDateRange, getRotationPeriod } from '../src/utils/dateUtils';
 
 describe('dateUtils', () => {
   describe('getISOWeek', () => {
@@ -69,6 +69,80 @@ describe('dateUtils', () => {
       const currentDate = new Date(Date.UTC(2024, 0, 5)); // Friday, same week
       
       expect(isNewWeek(lastRotation, currentDate)).toBe(false);
+    });
+  });
+
+  describe('getCustomWeek', () => {
+    it('should calculate Friday-to-Thursday weeks correctly', () => {
+      // Test with Monday, January 20, 2025 (should be in week starting Friday, Jan 17)
+      const testDate = new Date(Date.UTC(2025, 0, 20)); // Monday, Jan 20, 2025
+      const weekInfo = getCustomWeek(testDate, 5); // Friday = 5
+      
+      // Week should start on Friday (Jan 17) and end on Thursday (Jan 23)
+      expect(weekInfo.startDate.getUTCDay()).toBe(5); // Friday
+      expect(weekInfo.endDate.getUTCDay()).toBe(4); // Thursday
+      expect(weekInfo.startDate.getUTCDate()).toBe(17); // Jan 17
+      expect(weekInfo.endDate.getUTCDate()).toBe(23); // Jan 23
+    });
+
+    it('should handle Friday as start of week', () => {
+      // Test with Friday itself
+      const fridayDate = new Date(Date.UTC(2025, 0, 17)); // Friday, Jan 17, 2025
+      const weekInfo = getCustomWeek(fridayDate, 5);
+      
+      // Should be start of the week
+      expect(weekInfo.startDate.getUTCDate()).toBe(17); // Same day
+      expect(weekInfo.endDate.getUTCDate()).toBe(23); // Following Thursday
+    });
+
+    it('should handle Thursday as end of week', () => {
+      // Test with Thursday
+      const thursdayDate = new Date(Date.UTC(2025, 0, 23)); // Thursday, Jan 23, 2025
+      const weekInfo = getCustomWeek(thursdayDate, 5);
+      
+      // Should be end of the week
+      expect(weekInfo.startDate.getUTCDate()).toBe(17); // Previous Friday
+      expect(weekInfo.endDate.getUTCDate()).toBe(23); // Same day
+    });
+  });
+
+  describe('getRotationPeriod with Friday-to-Thursday config', () => {
+    it('should use Friday-to-Thursday weeks for weekly rotation', () => {
+      const config = { frequency: 'weekly' as const, schedule: { dayOfWeek: 5, time: '09:00' } };
+      const testDate = new Date(Date.UTC(2025, 0, 20)); // Monday, Jan 20, 2025
+      
+      const period = getRotationPeriod(testDate, config);
+      
+      expect(period.startDate.getUTCDay()).toBe(5); // Friday
+      expect(period.endDate.getUTCDay()).toBe(4); // Thursday
+      expect(period.startDate.getUTCDate()).toBe(17); // Jan 17
+      expect(period.endDate.getUTCDate()).toBe(23); // Jan 23
+    });
+
+    it('should default to Monday-to-Sunday for weekly rotation without dayOfWeek', () => {
+      const config = { frequency: 'weekly' as const, schedule: { time: '09:00' } };
+      const testDate = new Date(Date.UTC(2025, 0, 20)); // Monday, Jan 20, 2025
+      
+      const period = getRotationPeriod(testDate, config);
+      
+      expect(period.startDate.getUTCDay()).toBe(1); // Monday
+      expect(period.endDate.getUTCDay()).toBe(0); // Sunday
+    });
+  });
+
+  describe('isNewWeek with custom week start', () => {
+    it('should detect new Friday-to-Thursday week correctly', () => {
+      const lastRotation = '2025-01-16T00:00:00.000Z'; // Thursday (end of one week)
+      const currentDate = new Date(Date.UTC(2025, 0, 17)); // Friday (start of next week)
+      
+      expect(isNewWeek(lastRotation, currentDate, 5)).toBe(true);
+    });
+
+    it('should return false for same Friday-to-Thursday week', () => {
+      const lastRotation = '2025-01-17T00:00:00.000Z'; // Friday (start of week)
+      const currentDate = new Date(Date.UTC(2025, 0, 20)); // Monday (same week)
+      
+      expect(isNewWeek(lastRotation, currentDate, 5)).toBe(false);
     });
   });
 
