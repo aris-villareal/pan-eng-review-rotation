@@ -1,10 +1,24 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '@vercel/kv';
 
+interface RotationState {
+  users: Array<{ id: string; startDate: string }>;
+  currentIndex: number;
+  lastRotationDate: string;
+  startDate: string;
+  config: {
+    frequency: string;
+    schedule: {
+      time: string;
+      dayOfWeek?: number;
+    };
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Get current state
-    const currentState = await kv.get('rotation-state');
+    const currentState = await kv.get<RotationState>('rotation-state');
     
     if (!currentState) {
       return res.status(404).json({ error: 'No rotation state found in KV' });
@@ -13,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('Current state config:', JSON.stringify(currentState.config, null, 2));
 
     // Update the configuration to include dayOfWeek: 5 (Friday)
-    const updatedState = {
+    const updatedState: RotationState = {
       ...currentState,
       config: {
         ...currentState.config,
@@ -29,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     console.log('Updated KV state with Friday configuration');
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'KV state updated with Friday schedule',
       beforeConfig: currentState.config,
@@ -39,9 +53,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error) {
     console.error('Error updating KV:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'Failed to update KV state', 
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }
