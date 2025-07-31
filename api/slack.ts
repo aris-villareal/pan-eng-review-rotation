@@ -213,25 +213,30 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           
           // Generate schedule for next 6 periods
           const schedule: Array<{ user: any; periodInfo: any; periodNumber: number }> = [];
+          
+          // Get the current period start date to base calculations on
+          const currentPeriodInfo = getRotationPeriod(currentDate, state.config);
+          
           for (let i = 0; i < 6; i++) {
-            // Calculate target date for this period
-            let targetDate = new Date(currentDate);
+            // Calculate the start date for period i (based on current period start)
+            let periodStartDate = new Date(currentPeriodInfo.startDate);
+            
             if (state.config.frequency === 'weekly') {
-              targetDate.setDate(targetDate.getDate() + (i * 7));
+              periodStartDate.setDate(periodStartDate.getDate() + (i * 7));
             } else if (state.config.frequency === 'bi-weekly') {
-              targetDate.setDate(targetDate.getDate() + (i * 14));
+              periodStartDate.setDate(periodStartDate.getDate() + (i * 14));
             } else if (state.config.frequency === 'custom' && state.config.interval) {
-              targetDate.setDate(targetDate.getDate() + (i * state.config.interval));
+              periodStartDate.setDate(periodStartDate.getDate() + (i * (state.config.interval || 7)));
             }
             
-            // Calculate which user should be active for this date
+            // Calculate which user should be active for this period
             const rotationStartDate = new Date(state.startDate);
-            const periodsSinceStart = getPeriodsBetween(rotationStartDate, targetDate, state.config);
+            const periodsSinceStart = getPeriodsBetween(rotationStartDate, periodStartDate, state.config);
             const targetIndex = (state.currentIndex + periodsSinceStart) % state.users.length;
             const user = state.users[targetIndex];
             
             if (user) {
-              const periodInfo = getRotationPeriod(targetDate, state.config);
+              const periodInfo = getRotationPeriod(periodStartDate, state.config);
               schedule.push({
                 user,
                 periodInfo,
