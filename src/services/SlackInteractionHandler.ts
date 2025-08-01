@@ -65,30 +65,7 @@ export class SlackInteractionHandler {
       }
     });
 
-    // Handle show schedule button
-    this.app.action('show_schedule', async ({ ack, body, logger }) => {
-      await ack();
 
-      try {
-        const userId = body.user.id;
-        
-        // Get upcoming rotation schedule
-        const schedule = await this.rotationService.getUpcomingRotation(6);
-        
-        // Send schedule as ephemeral message
-        await this.slackService.sendScheduleMessage(userId, schedule);
-
-        logger.info(`Schedule requested by user ${userId}`);
-      } catch (error) {
-        logger.error('Error showing schedule:', error);
-        
-        // Send error message to user
-        await this.slackService.sendEphemeralMessage(
-          body.user.id,
-          '❌ Sorry, there was an error loading the schedule. Please try again or contact an admin.'
-        );
-      }
-    });
 
     // Handle slash commands (optional)
     this.app.command('/skip-rotation', async ({ ack, body, client, logger }) => {
@@ -122,29 +99,6 @@ export class SlackInteractionHandler {
       }
     });
 
-    this.app.command('/rotation-schedule', async ({ ack, body, logger }) => {
-      await ack();
-
-      try {
-        const userId = body.user_id;
-        
-        // Get upcoming rotation schedule
-        const schedule = await this.rotationService.getUpcomingRotation(6);
-        
-        // Send schedule as ephemeral message
-        await this.slackService.sendScheduleMessage(userId, schedule);
-
-        logger.info(`Schedule requested via slash command by user ${userId}`);
-      } catch (error) {
-        logger.error('Error showing schedule via slash command:', error);
-        
-        // Send error response
-        await this.slackService.sendEphemeralMessage(
-          body.user_id,
-          '❌ Sorry, there was an error loading the schedule. Please try again or contact an admin.'
-        );
-      }
-    });
   }
 
   /**

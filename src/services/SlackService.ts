@@ -142,19 +142,6 @@ export class SlackService {
               timestamp: Date.now(),
             }),
           },
-          {
-            type: 'button',
-            text: {
-              type: 'plain_text',
-              text: '📊 Show Schedule',
-              emoji: true,
-            },
-            action_id: 'show_schedule',
-            value: JSON.stringify({
-              action: 'schedule',
-              timestamp: Date.now(),
-            }),
-          },
         ],
       },
     ];
@@ -336,56 +323,6 @@ export class SlackService {
       return {
         success: true,
         messageTs: result.ts,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: (error as Error).message,
-      };
-    }
-  }
-
-  /**
-   * Send rotation schedule as an ephemeral message
-   */
-  async sendScheduleMessage(userId: string, schedule: Array<{ user: User; periodInfo: PeriodInfo; periodNumber: number }>): Promise<NotificationResult> {
-    try {
-      const blocks: any[] = [
-        {
-          type: 'header',
-          text: {
-            type: 'plain_text',
-            text: '📅 Upcoming Rotation Schedule',
-            emoji: true,
-          },
-        },
-      ];
-
-      schedule.forEach((item, index) => {
-        const dateRange = formatDateRange(item.periodInfo.startDate, item.periodInfo.endDate);
-        blocks.push({
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `*Period ${item.periodNumber}* (${dateRange})\n<@${item.user.id}>`,
-          },
-        });
-      });
-
-      const result = await this.client.chat.postEphemeral({
-        channel: this.channelId,
-        user: userId,
-        blocks,
-        text: 'Upcoming rotation schedule',
-      });
-
-      if (!result.ok) {
-        throw new Error(`Slack API error: ${result.error || 'Unknown error'}`);
-      }
-
-      return {
-        success: true,
-        messageTs: result.message_ts,
       };
     } catch (error) {
       return {

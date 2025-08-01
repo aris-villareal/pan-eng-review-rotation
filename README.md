@@ -141,11 +141,6 @@ curl https://your-app.vercel.app/api/slack
 - Immediately advances rotation and updates KV state
 - Updates message with new current user
 
-**View Upcoming Schedule**:
-- Click "📅 Show Schedule" button
-- Shows next 6 weeks of rotation (ephemeral message)
-- Reflects any manual skips made
-
 ### CLI Commands
 
 ```bash
@@ -254,7 +249,7 @@ Role responsibilities:
 • Facilitate team communication
 • Weekly summary on Friday
 
-[⏭️ Skip to Next]  [📅 Show Schedule]
+[⏭️ Skip to Next]
 
 Questions? Reach out to this week's owner! 👋
 ```

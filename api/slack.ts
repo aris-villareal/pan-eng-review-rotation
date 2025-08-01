@@ -200,69 +200,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           
           res.status(200).json({ text: 'Error occurred' });
         }
-      } else if (action.action_id === 'show_schedule') {
-        try {
-          // Use KV storage to get current rotation state
-          const { KVStorageService } = await import('../src/services/KVStorageService');
-          const kvStorageService = new KVStorageService();
-          const { getCurrentDateInTimezone, getRotationPeriod, getPeriodsBetween } = await import('../src/utils/dateUtils');
-          
-          // Get current rotation state from KV
-          const state = await kvStorageService.loadRotationState();
-          const currentDate = getCurrentDateInTimezone(config.timezone);
-          
-          // Generate schedule for next 6 periods
-          const schedule: Array<{ user: any; periodInfo: any; periodNumber: number }> = [];
-          
-          // Get the current period start date to base calculations on
-          const currentPeriodInfo = getRotationPeriod(currentDate, state.config);
-          
-          for (let i = 0; i < 6; i++) {
-            // Calculate the start date for period i (based on current period start)
-            let periodStartDate = new Date(currentPeriodInfo.startDate);
-            
-            if (state.config.frequency === 'weekly') {
-              periodStartDate.setDate(periodStartDate.getDate() + (i * 7));
-            } else if (state.config.frequency === 'bi-weekly') {
-              periodStartDate.setDate(periodStartDate.getDate() + (i * 14));
-            } else if (state.config.frequency === 'custom' && state.config.interval) {
-              periodStartDate.setDate(periodStartDate.getDate() + (i * (state.config.interval || 7)));
-            }
-            
-            // Calculate which user should be active for this period
-            const rotationStartDate = new Date(state.startDate);
-            const periodsSinceStart = getPeriodsBetween(rotationStartDate, periodStartDate, state.config);
-            const targetIndex = (state.currentIndex + periodsSinceStart) % state.users.length;
-            const user = state.users[targetIndex];
-            
-            if (user) {
-              const periodInfo = getRotationPeriod(periodStartDate, state.config);
-              schedule.push({
-                user,
-                periodInfo,
-                periodNumber: i + 1,
-              });
-            }
-          }
-          
-          await slackService.sendScheduleMessage(userId, schedule);
-          
-          console.log(`Schedule sent to ${userId} (using KV data with ${state.users.length} users, current index: ${state.currentIndex})`);
-          res.status(200).json({ text: 'Schedule sent!' });
-        } catch (error) {
-          console.error('Error showing schedule:', error);
-          
-          try {
-            await slackService.sendEphemeralMessage(
-              userId,
-              '❌ Sorry, there was an error loading the schedule.'
-            );
-          } catch (ephemeralError) {
-            console.error('Error sending ephemeral error message:', ephemeralError);
-          }
-          
-          res.status(200).json({ text: 'Error occurred' });
-        }
+
       } else {
         res.status(200).json({ text: 'Unknown action' });
       }
