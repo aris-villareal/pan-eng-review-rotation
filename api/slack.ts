@@ -201,6 +201,37 @@ export default async (req: VercelRequest, res: VercelResponse) => {
           res.status(200).json({ text: 'Error occurred' });
         }
 
+      } else if (action.action_id === 'show_schedule') {
+        try {
+          // Use KV storage to get current state and upcoming rotation
+          const { KVStorageService } = await import('../src/services/KVStorageService');
+          const { RotationService } = await import('../src/services/RotationService');
+          
+          const kvStorageService = new KVStorageService();
+          const rotationService = new RotationService(kvStorageService, config.timezone);
+          
+          // Get upcoming rotation schedule (next 4 periods)
+          const schedule = await rotationService.getUpcomingRotation(4);
+          
+          // Send schedule as ephemeral message (only visible to the user who clicked)
+          await slackService.sendScheduleMessage(userId, schedule);
+
+          console.log(`Schedule shown to user ${userId}`);
+          res.status(200).json({ text: 'Schedule displayed!' });
+        } catch (error) {
+          console.error('Error showing schedule:', error);
+          
+          try {
+            await slackService.sendPublicMessage(
+              `❌ <@${userId}> tried to view the schedule, but there was an error. Please try again or contact an admin.`
+            );
+          } catch (publicError) {
+            console.error('Error sending public error message:', publicError);
+          }
+          
+          res.status(200).json({ text: 'Error occurred' });
+        }
+
       } else {
         res.status(200).json({ text: 'Unknown action' });
       }

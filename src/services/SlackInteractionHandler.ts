@@ -65,7 +65,29 @@ export class SlackInteractionHandler {
       }
     });
 
+    // Handle show schedule button
+    this.app.action('show_schedule', async ({ ack, body, logger }) => {
+      await ack();
 
+      try {
+        const userId = body.user.id;
+        
+        // Get upcoming rotation schedule (next 4 periods)
+        const schedule = await this.rotationService.getUpcomingRotation(4);
+        
+        // Send schedule as ephemeral message (only visible to the user who clicked)
+        await this.slackService.sendScheduleMessage(userId, schedule);
+
+        logger.info(`Schedule shown to user ${userId}`);
+      } catch (error) {
+        logger.error('Error showing schedule:', error);
+        
+        // Send error message to channel
+        await this.slackService.sendPublicMessage(
+          `❌ <@${body.user.id}> tried to view the schedule, but there was an error. Please try again or contact an admin.`
+        );
+      }
+    });
 
     // Handle slash commands (optional)
     this.app.command('/skip-rotation', async ({ ack, body, client, logger }) => {

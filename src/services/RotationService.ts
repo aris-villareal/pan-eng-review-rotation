@@ -187,20 +187,12 @@ export class RotationService {
    * Advance the rotation and update state
    */
   private async advanceRotation(state: RotationState, currentDate: Date): Promise<void> {
-    const lastRotationDate = new Date(state.lastRotationDate);
-    const periodsSinceLastRotation = getPeriodsBetween(lastRotationDate, currentDate, state.config);
-    
-    if (periodsSinceLastRotation <= 0) {
-      return; // No advancement needed
-    }
-    
-    // Calculate new index based on periods passed
-    const newIndex = (state.currentIndex + periodsSinceLastRotation) % state.users.length;
+    // Simply increment to next user
+    const newIndex = (state.currentIndex + 1) % state.users.length;
     
     await this.storageService.updateRotationState(newIndex, currentDate.toISOString());
     
-    const periodType = state.config.frequency === 'custom' ? `${state.config.interval}-day period(s)` : `${state.config.frequency} period(s)`;
-    console.log(`Rotation advanced: ${periodsSinceLastRotation} ${periodType} passed, new index: ${newIndex}`);
+    console.log(`Rotation advanced to next user, new index: ${newIndex}`);
   }
 
   /**

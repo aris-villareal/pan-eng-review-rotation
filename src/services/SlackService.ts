@@ -142,6 +142,19 @@ export class SlackService {
               timestamp: Date.now(),
             }),
           },
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: '📅 Show Schedule',
+              emoji: true,
+            },
+            action_id: 'show_schedule',
+            value: JSON.stringify({
+              action: 'show_schedule',
+              timestamp: Date.now(),
+            }),
+          },
         ],
       },
     ];
@@ -152,6 +165,63 @@ export class SlackService {
       blocks,
       fallbackText,
     };
+  }
+
+  /**
+   * Format upcoming schedule message
+   */
+  async formatScheduleMessage(schedule: Array<{ user: User; periodInfo: PeriodInfo; periodNumber: number }>): Promise<{ blocks: any[]; fallbackText: string }> {
+    const blocks = [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '📅 Upcoming Rotation Schedule',
+          emoji: true,
+        },
+      },
+    ];
+
+    // Add schedule items
+    for (const item of schedule) {
+      const dateRange = formatDateRange(item.periodInfo.startDate, item.periodInfo.endDate);
+      const userInfo = await this.getUserInfo(item.user.id);
+      const displayName = userInfo?.name || item.user.name || item.user.id;
+      
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*Period ${item.periodNumber}* (${dateRange})\n<@${item.user.id}> (${displayName})`,
+        },
+      } as any);
+    }
+
+    const fallbackText = schedule
+      .map(item => {
+        const dateRange = formatDateRange(item.periodInfo.startDate, item.periodInfo.endDate);
+        return `Period ${item.periodNumber} (${dateRange}): ${item.user.name || item.user.id}`;
+      })
+      .join('\n');
+
+    return {
+      blocks,
+      fallbackText: `Upcoming Rotation Schedule:\n${fallbackText}`,
+    };
+  }
+
+  /**
+   * Send schedule as ephemeral message (only visible to the user who clicked)
+   */
+  async sendScheduleMessage(userId: string, schedule: Array<{ user: User; periodInfo: PeriodInfo; periodNumber: number }>): Promise<void> {
+    const { blocks, fallbackText } = await this.formatScheduleMessage(schedule);
+    
+    await this.client.chat.postEphemeral({
+      channel: this.channelId,
+      user: userId,
+      blocks,
+      text: fallbackText,
+    });
   }
 
   /**
