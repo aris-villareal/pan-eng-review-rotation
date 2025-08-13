@@ -1,0 +1,104 @@
+{
+  "messageStyles": {
+    "staff-documentation": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 5,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "staff-documentation",
+          "title": "📄 Staff Documentation Rotation",
+          "ownerLabel": "This week's article presenter",
+          "responsibilities": [
+            "• Please prepare an interesting article to share",
+            "• 5-10 minute presentation/discussion",
+            "• Focus on industry trends, best practices, or innovation",
+            "• Share the article link in advance if possible"
+          ],
+          "callToAction": "Questions? Reach out to this week's presenter! 📚",
+          "emoji": {
+            "header": "📄",
+            "owner": "🎯",
+            "responsibility": ""
+          }
+        }
+      }
+    },
+    "professional": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "professional"
+        }
+      }
+    },
+    "casual": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "casual"
+        }
+      }
+    },
+    "fun": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "fun"
+        }
+      }
+    },
+    "minimal": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "minimal"
+        }
+      }
+    },
+    "customExample": {
+      "config": {
+        "frequency": "weekly",
+        "schedule": {
+          "dayOfWeek": 1,
+          "time": "09:00"
+        },
+        "message": {
+          "style": "custom",
+          "title": "DevOps Hero of the Week",
+          "ownerLabel": "This week's DevOps superhero",
+          "responsibilities": [
+            "🚀 Deploy with confidence",
+            "🔧 Fix what's broken",
+            "📊 Monitor all the things",
+            "🎯 Keep the team focused"
+          ],
+          "callToAction": "Need DevOps magic? Summon this week's hero! ⚡️",
+          "emoji": {
+            "header": "🦸‍♀️",
+            "owner": "⭐",
+            "responsibility": ""
+          }
+        }
+      }
+    }
+  }
+}

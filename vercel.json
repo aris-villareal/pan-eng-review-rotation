@@ -1,0 +1,19 @@
+{
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/slack.ts": {
+      "maxDuration": 30,
+      "includeFiles": "src/config/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/slack/events",
+      "destination": "/api/slack"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

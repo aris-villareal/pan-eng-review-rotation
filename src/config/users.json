@@ -1,0 +1,74 @@
+{
+  "users": [
+    {
+      "id": "aris.villareal",
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "steeve.bete", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "eddie.davies", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "dmitry.doronin", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "joseph.gaudierdepew", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "alex.morton", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "aron.nochenson", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "basile.barrincio", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "malki.davis", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "jia.kim", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "jessye.coleman-shapir", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "sohum.dalal", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "andras.varadi", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "matthew.colozzo", 
+      "startDate": "2025-07-18"
+    },
+    {
+      "id": "dillon.patel", 
+      "startDate": "2025-07-30"
+    }
+  ],
+  "currentIndex": 0,
+  "lastRotationDate": "2025-07-21",
+  "startDate": "2025-07-18",
+  "config": {
+    "frequency": "weekly",
+    "schedule": {
+      "dayOfWeek": 5,
+      "time": "09:00"
+    }
+  }
+}
