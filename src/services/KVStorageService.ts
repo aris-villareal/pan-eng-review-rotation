@@ -17,7 +17,7 @@ export class KVStorageService {
       }
 
       // Fallback: use embedded default state for staff documentation rotation
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0] || new Date().toISOString().substring(0, 10);
       const defaultState: RotationState = {
         users: [
           { id: "staff.member1", startDate: today },
